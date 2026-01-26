@@ -54,13 +54,13 @@ public class RobotContainer {
    * Converts driver input into a field-relative ChassisSpeeds that is controlled
    * by angular velocity.
    */
-  // SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
-  //     () -> driverXbox.getLeftY() * -1,
-  //     () -> driverXbox.getLeftX() * -1)
-  //     .withControllerRotationAxis(driverXbox::getRightX)
-  //     .deadband(OperatorConstants.DEADBAND)
-  //     .scaleTranslation(0.8)
-  //     .allianceRelativeControl(true);
+  SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
+      () -> driverXbox.getLeftY() * -1,
+      () -> driverXbox.getLeftX() * -1)
+      .withControllerRotationAxis(driverXbox::getRightX)
+      .deadband(OperatorConstants.DEADBAND)
+      .scaleTranslation(0.5)
+      .allianceRelativeControl(true);
 
   /**
    * Clone's the angular velocity input stream and converts it to a fieldRelative
@@ -77,14 +77,14 @@ public class RobotContainer {
   // SwerveInputStream driveRobotOriented = driveAngularVelocity.copy().robotRelative(true)
   //     .allianceRelativeControl(false);
 
-  // SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
-  //     () -> -driverXbox.getLeftY(),
-  //     () -> -driverXbox.getLeftX())
-  //     .withControllerRotationAxis(() -> driverXbox.getRawAxis(
-  //         2))
-  //     .deadband(OperatorConstants.DEADBAND)
-  //     .scaleTranslation(0.8)
-  //     .allianceRelativeControl(true);
+  SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
+       () -> -driverXbox.getLeftY(),
+      () -> -driverXbox.getLeftX())
+      .withControllerRotationAxis(() -> driverXbox.getRawAxis(
+          2))
+      .deadband(OperatorConstants.DEADBAND)
+      .scaleTranslation(0.5)
+      .allianceRelativeControl(true);
   // Derive the heading axis with math!
   // SwerveInputStream driveDirectAngleKeyboard = driveAngularVelocityKeyboard.copy()
   //     .withControllerHeadingAxis(() -> Math.sin(
@@ -149,20 +149,20 @@ public class RobotContainer {
     driverXbox.a()
     .whileTrue(new RunMotor(motorSubsystem, -0.67));
     // Command driveFieldOrientedDirectAngle = drivebase.driveFieldOriented(driveDirectAngle);
-    // Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
+    Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
     // Command driveRobotOrientedAngularVelocity = drivebase.driveFieldOriented(driveRobotOriented);
     // Command driveSetpointGen = drivebase.driveWithSetpointGeneratorFieldRelative(
     //     driveDirectAngle);
     // Command driveFieldOrientedDirectAngleKeyboard = drivebase.driveFieldOriented(driveDirectAngleKeyboard);
-    // Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+     Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
     // Command driveSetpointGenKeyboard = drivebase.driveWithSetpointGeneratorFieldRelative(
     //     driveDirectAngleKeyboard);
 
-    // if (RobotBase.isSimulation()) {
-    //   drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    // } else {
-    //   drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    // }
+    if (RobotBase.isSimulation()) {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    } else {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    }
 
     // if (Robot.isSimulation()) {
     //   Pose2d target = new Pose2d(new Translation2d(1, 4),
