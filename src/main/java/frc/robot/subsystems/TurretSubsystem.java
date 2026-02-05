@@ -1,341 +1,153 @@
 package frc.robot.subsystems;
 
-import static edu.wpi.first.units.Units.Radians;
-import static edu.wpi.first.units.Units.RadiansPerSecond;
-import static edu.wpi.first.units.Units.Rotations;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
-
-import com.ctre.phoenix6.BaseStatusSignal;
-import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.configs.ClosedLoopRampsConfigs;
-import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
-import com.ctre.phoenix6.configs.OpenLoopRampsConfigs;
-import com.ctre.phoenix6.configs.Slot0Configs;
-import com.ctre.phoenix6.configs.SoftwareLimitSwitchConfigs;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.PositionVoltage;
-import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.signals.GravityTypeValue;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import edu.wpi.first.epilogue.Logged;
-import edu.wpi.first.math.controller.ArmFeedforward;
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.*;
-import edu.wpi.first.wpilibj.RobotController;
-import edu.wpi.first.wpilibj.simulation.BatterySim;
-import edu.wpi.first.wpilibj.simulation.RoboRioSim;
-import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-/**
- * Pivot subsystem using TalonFX with Krakenx60 motor
- */
-@Logged(name = "TurretSubsystem")
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.DutyCycleEncoder;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
+
+import org.littletonrobotics.junction.Logger;
+
 public class TurretSubsystem extends SubsystemBase {
 
-  // Constants
-  private final DCMotor dcMotor = DCMotor.getKrakenX60(1);
-  private final int canID = 9;
-  private final double gearRatio = 45;
-  private final double kP = 50;
-  private final double kI = 0;
-  private final double kD = 0;
-  private final double kS = 0;
-  private final double kV = 0;
-  private final double kA = 0;
-  private final double kG = 0; // Unused for pivots
-  private final double maxVelocity = 1; // rad/s
-  private final double maxAcceleration = 1; // rad/s²
-  private final boolean brakeMode = true;
-  private final boolean enableStatorLimit = true;
-  private final double statorCurrentLimit = 40;
-  private final boolean enableSupplyLimit = false;
-  private final double supplyCurrentLimit = 40;
+  private final TalonFX motor = new TalonFX(9);
+  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(0);
 
-  // Feedforward
-  private final ArmFeedforward feedforward = new ArmFeedforward(
-    kS, // kS
-    0, // kG - Pivot doesn't need gravity compensation
-    kV, // kV
-    kA // kA
-  );
+  // Gear ratios
+  private static final double MOTOR_TO_TURRET_RATIO = 48.0;
+  private static final double ENCODER_TO_TURRET_RATIO = 10.0;
 
-  // Motor controller
-  private final TalonFX motor;
-  private final PositionVoltage positionRequest;
-  private final VelocityVoltage velocityRequest;
-  private final StatusSignal<Angle> positionSignal;
-  private final StatusSignal<AngularVelocity> velocitySignal;
-  private final StatusSignal<Voltage> voltageSignal;
-  private final StatusSignal<Current> statorCurrentSignal;
-  private final StatusSignal<Temperature> temperatureSignal;
+  public Translation3d BlueHubPose = new Translation3d(4.597, 4.035, 1.575);
+  public Translation3d RedHubPose = new Translation3d(11.938, 4.035, 1.575);
+  public boolean blueAlliance = DriverStation.getAlliance().get() == Alliance.Blue;
 
-  // Simulation
-  private final SingleJointedArmSim pivotSim;
+  // Wrap-around tracking for absolute encoder
+  private double lastRaw = 0.0;
+  private double wrapTurns = 0.0;
 
-  /**
-   * Creates a new Pivot Subsystem.
-   */
+  // Turret position offset on robot (meters)
+  private final Translation3d turretOffset = new Translation3d(0, -0.15, 0.46);
+
   public TurretSubsystem() {
-    // Initialize motor controller
-    motor = new TalonFX(canID);
-
-    // Create control requests
-    positionRequest = new PositionVoltage(0).withSlot(0);
-    velocityRequest = new VelocityVoltage(0).withSlot(0);
-
-    // get status signals
-    positionSignal = motor.getPosition();
-    velocitySignal = motor.getVelocity();
-    voltageSignal = motor.getMotorVoltage();
-    statorCurrentSignal = motor.getStatorCurrent();
-    temperatureSignal = motor.getDeviceTemp();
-
-    TalonFXConfiguration config = new TalonFXConfiguration();
-
-    // Configure PID for slot 0
-    Slot0Configs slot0 = config.Slot0;
-    slot0.kP = kP;
-    slot0.kI = kI;
-    slot0.kD = kD;
-    slot0.GravityType = GravityTypeValue.Arm_Cosine;
-    slot0.kS = kS;
-    slot0.kV = kV;
-    slot0.kA = kA;
-
-    // Set current limits
-    CurrentLimitsConfigs currentLimits = config.CurrentLimits;
-    currentLimits.StatorCurrentLimit = statorCurrentLimit;
-    currentLimits.StatorCurrentLimitEnable = enableStatorLimit;
-    currentLimits.SupplyCurrentLimit = supplyCurrentLimit;
-    currentLimits.SupplyCurrentLimitEnable = enableSupplyLimit;
-
-    // Set brake mode
-    config.MotorOutput.NeutralMode = brakeMode
-      ? NeutralModeValue.Brake
-      : NeutralModeValue.Coast;
-
-    // Apply gear ratio
-    config.Feedback.SensorToMechanismRatio = gearRatio;
-
-    // Apply configuration
-    motor.getConfigurator().apply(config);
-
-    // Reset encoder position
-    motor.setPosition(0);
-
-    // Initialize simulation
-    pivotSim = new SingleJointedArmSim(
-      dcMotor, // Motor type
-      gearRatio,
-      0.01, // Arm moment of inertia - Small value since there are no arm parameters
-      0.1, // Arm length (m) - Small value since there are no arm parameters
-      Units.degreesToRadians(-90), // Min angle (rad)
-      Units.degreesToRadians(90), // Max angle (rad)
-      false, // Simulate gravity - Disable gravity for pivot
-      Units.degreesToRadians(0) // Starting position (rad)
-    );
+    configureMotor();
+    // No setDutyCycleRange needed; raw 0–1 × 360 gives degrees
   }
 
-  /**
-   * Update simulation and telemetry.
-   */
+  private void configureMotor() {
+    TalonFXConfiguration cfg = new TalonFXConfiguration();
+    cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+
+    // Software limits in motor rotations
+    cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
+    cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degreesToMotorRotations(180.0);
+    cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degreesToMotorRotations(-180.0);
+
+    motor.getConfigurator().apply(cfg);
+  }
+
+  // --- Public API ---
+
+  public void setPercent(double percent) {
+    motor.set(percent);
+  }
+
+  public void setAngle(double degrees) {
+    motor.setPosition(degreesToMotorRotations(degrees));
+  }
+
+  public void zeroToAbsolute() {
+    double turretDeg = getAbsoluteTurretAngle();
+    motor.setPosition(degreesToMotorRotations(turretDeg));
+  }
+
+  public double getTurretAngle() {
+    // Phoenix 6 TalonFX.getPosition() -> StatusSignal<Angle>
+    double motorRotations = motor.getPosition().getValueAsDouble(); // rotations
+    return motorRotationsToDegrees(motorRotations);
+  }
+
+  public double getAbsoluteTurretAngle() {
+    double raw = absoluteEncoder.get(); // 0.0–1.0
+    double delta = raw - lastRaw;
+    if (delta > 0.5)
+      wrapTurns--;
+    if (delta < -0.5)
+      wrapTurns++;
+    lastRaw = raw;
+
+    double degrees = raw * 360.0; // convert normalized PWM to degrees
+    double totalDegrees = degrees + wrapTurns * 360.0;
+    return wrapDegrees(totalDegrees / ENCODER_TO_TURRET_RATIO);
+  }
+
+  // --- Conversion helpers ---
+
+  private double degreesToMotorRotations(double turretDegrees) {
+    return (turretDegrees / 360.0) * MOTOR_TO_TURRET_RATIO;
+  }
+
+  private double motorRotationsToDegrees(double motorRotations) {
+    return (motorRotations / MOTOR_TO_TURRET_RATIO) * 360.0;
+  }
+
+  private double wrapDegrees(double deg) {
+    while (deg > 180.0)
+      deg -= 360.0;
+    while (deg < -180.0)
+      deg += 360.0;
+    return deg;
+  }
+
+  public void aimAtHub(Pose2d robotPose) {
+    Pose3d hubPose = new Pose3d(
+        blueAlliance ? BlueHubPose : RedHubPose,
+        new Rotation3d(0, 0, 0));
+
+    // 5️⃣ Compute turret-relative angle
+    Translation2d turretFieldXY = turretOffset.toTranslation2d()
+        .rotateBy(robotPose.getRotation())
+        .plus(robotPose.getTranslation());
+
+    Translation2d hubXY = hubPose.getTranslation().toTranslation2d();
+
+    double dx = hubXY.getX() - turretFieldXY.getX();
+    double dy = hubXY.getY() - turretFieldXY.getY();
+
+    double targetYawField = Math.atan2(dy, dx);
+
+    double turretRelativeRad = targetYawField - robotPose.getRotation().getRadians();
+    double turretRelativeDeg = Math.toDegrees(turretRelativeRad);
+    turretRelativeDeg = wrapDegrees(turretRelativeDeg);
+
+    setAngle(turretRelativeDeg);
+  }
+
+  // --- Periodic logging for AdvantageScope 3D ---
   @Override
   public void periodic() {
-    BaseStatusSignal.refreshAll(
-      positionSignal,
-      velocitySignal,
-      voltageSignal,
-      statorCurrentSignal,
-      temperatureSignal
-    );
-  }
+    double turretDeg = getTurretAngle();
+    double absDeg = getAbsoluteTurretAngle();
+    double turretRad = Math.toRadians(turretDeg);
 
-  /**
-   * Update simulation.
-   */
-  @Override
-  public void simulationPeriodic() {
-    // Set input voltage from motor controller to simulation
-    // Note: This may need to be talonfx.getSimState().getMotorVoltage() as the input
-    //pivotSim.setInput(dcMotor.getVoltage(dcMotor.getTorque(pivotSim.getCurrentDrawAmps()), pivotSim.getVelocityRadPerSec()));
-    // pivotSim.setInput(getVoltage());
-    // Set input voltage from motor controller to simulation
-    // Use motor voltage for TalonFX simulation input
-    pivotSim.setInput(motor.getSimState().getMotorVoltage());
+    // Turret rotation around vertical axis
+    Rotation3d turretRotation = new Rotation3d(0, 0, turretRad);
+    Pose3d turretPose = new Pose3d(turretOffset, turretRotation);
+    // Log 3D pose
+    Logger.recordOutput("Turret/Pose3d", turretPose);
 
-    // Update simulation by 20ms
-    pivotSim.update(0.020);
-    RoboRioSim.setVInVoltage(
-      BatterySim.calculateDefaultBatteryLoadedVoltage(
-        pivotSim.getCurrentDrawAmps()
-      )
-    );
-
-    double motorPosition = Radians.of(pivotSim.getAngleRads() * gearRatio).in(
-      Rotations
-    );
-    double motorVelocity = RadiansPerSecond.of(
-      pivotSim.getVelocityRadPerSec() * gearRatio
-    ).in(RotationsPerSecond);
-
-    motor.getSimState().setRawRotorPosition(motorPosition);
-    motor.getSimState().setRotorVelocity(motorVelocity);
-  }
-
-  /**
-   * Get the current position in Rotations.
-   * @return Position in Rotations
-   */
-  @Logged(name = "Position/Rotations")
-  public double getPosition() {
-    // Rotations
-    return positionSignal.getValueAsDouble();
-  }
-
-  /**
-   * Get the current velocity in rotations per second.
-   * @return Velocity in rotations per second
-   */
-  @Logged(name = "Velocity")
-  public double getVelocity() {
-    return velocitySignal.getValueAsDouble();
-  }
-
-  /**
-   * Get the current applied voltage.
-   * @return Applied voltage
-   */
-  @Logged(name = "Voltage")
-  public double getVoltage() {
-    return voltageSignal.getValueAsDouble();
-  }
-
-  /**
-   * Get the current motor current.
-   * @return Motor current in amps
-   */
-  public double getCurrent() {
-    return statorCurrentSignal.getValueAsDouble();
-  }
-
-  /**
-   * Get the current motor temperature.
-   * @return Motor temperature in Celsius
-   */
-  public double getTemperature() {
-    return temperatureSignal.getValueAsDouble();
-  }
-
-  /**
-   * Set pivot angle.
-   * @param angleDegrees The target angle in degrees
-   */
-  public void setAngle(double angleDegrees) {
-    setAngle(angleDegrees, 0);
-  }
-
-  /**
-   * Set pivot angle with acceleration.
-   * @param angleDegrees The target angle in degrees
-   * @param acceleration The acceleration in rad/s²
-   */
-  public void setAngle(double angleDegrees, double acceleration) {
-    // Convert degrees to rotations
-    double angleRadians = Units.degreesToRadians(angleDegrees);
-    double positionRotations = angleRadians / (2.0 * Math.PI);
-
-    double ffVolts = feedforward.calculate(getVelocity(), acceleration);
-    //motor.setControl(positionRequest.withPosition(positionRotations).withFeedForward(ffVolts));
-    motor.setControl(positionRequest.withPosition(positionRotations));
-  }
-
-  /**
-   * Set pivot angular velocity.
-   * @param velocityDegPerSec The target velocity in degrees per second
-   */
-  public void setVelocity(double velocityDegPerSec) {
-    setVelocity(velocityDegPerSec, 0);
-  }
-
-  /**
-   * Set pivot angular velocity with acceleration.
-   * @param velocityDegPerSec The target velocity in degrees per second
-   * @param acceleration The acceleration in degrees per second squared
-   */
-  public void setVelocity(double velocityDegPerSec, double acceleration) {
-    // Convert degrees/sec to rotations/sec
-    double velocityRadPerSec = Units.degreesToRadians(velocityDegPerSec);
-    double velocityRotations = velocityRadPerSec / (2.0 * Math.PI);
-
-    double ffVolts = feedforward.calculate(getVelocity(), acceleration);
-    //motor.setControl(velocityRequest.withVelocity(velocityRotations).withFeedForward(ffVolts));
-    motor.setControl(velocityRequest.withVelocity(velocityRotations));
-  }
-
-  /**
-   * Set motor voltage directly.
-   * @param voltage The voltage to apply
-   */
-  public void setVoltage(double voltage) {
-    motor.setVoltage(voltage);
-  }
-
-  /**
-   * Get the pivot simulation for testing.
-   * @return The pivot simulation model
-   */
-  public SingleJointedArmSim getSimulation() {
-    return pivotSim;
-  }
-
-  /**
-   * Creates a command to set the pivot to a specific angle.
-   * @param angleDegrees The target angle in degrees
-   * @return A command that sets the pivot to the specified angle
-   */
-  public Command setAngleCommand(double angleDegrees) {
-    return runOnce(() -> setAngle(angleDegrees));
-  }
-
-  /**
-   * Creates a command to move the pivot to a specific angle with a profile.
-   * @param angleDegrees The target angle in degrees
-   * @return A command that moves the pivot to the specified angle
-   */
-  public Command moveToAngleCommand(double angleDegrees) {
-    return run(() -> {
-      double currentAngle = Units.radiansToDegrees(getPosition());
-      double error = angleDegrees - currentAngle;
-      double velocityDegPerSec =
-        Math.signum(error) *
-        Math.min(Math.abs(error) * 2.0, Units.radiansToDegrees(maxVelocity));
-      setVelocity(velocityDegPerSec);
-    })
-      .until(() -> {
-        double currentAngle = Units.radiansToDegrees(getPosition());
-        return Math.abs(angleDegrees - currentAngle) < 2.0; // 2 degree tolerance
-      })
-      .finallyDo(interrupted -> setVelocity(0));
-  }
-
-  /**
-   * Creates a command to stop the pivot.
-   * @return A command that stops the pivot
-   */
-  public Command stopCommand() {
-    return runOnce(() -> setVelocity(0));
-  }
-
-  /**
-   * Creates a command to move the pivot at a specific velocity.
-   * @param velocityDegPerSec The target velocity in degrees per second
-   * @return A command that moves the pivot at the specified velocity
-   */
-  public Command moveAtVelocityCommand(double velocityDegPerSec) {
-    return run(() -> setVelocity(velocityDegPerSec));
+    // Log raw values
+    Logger.recordOutput("Turret/AngleDeg", turretDeg);
+    Logger.recordOutput("Turret/AbsoluteDeg", absDeg);
+    Logger.recordOutput("Turret/EncoderRaw", absoluteEncoder.get());
+    Logger.recordOutput("Turret/MotorRotations", motor.getPosition().getValueAsDouble());
   }
 }
