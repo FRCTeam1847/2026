@@ -13,18 +13,15 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.RunMotor;
-import frc.robot.subsystems.ExampleSubsystem;
-import frc.robot.subsystems.MotorSubsystem;
+import frc.robot.commands.ShootCommand;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
-
-import static edu.wpi.first.units.Units.Degrees;
 
 import java.io.File;
 import swervelib.SwerveInputStream;
@@ -45,12 +42,8 @@ public class RobotContainer {
   private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
       "swerve"));
 
-  // private final MotorSubsystem motorSubsystem = new MotorSubsystem();
-  // private final TurretSubsystem turretSubsystem = new TurretSubsystem();
-  // private final ExampleSubsystem m_exampleSubsystem = new ExampleSubsystem();
-  private final ShooterSubsystem shooter = new ShooterSubsystem();
-  // private final MotorSubsystem motorSubsystem = new MotorSubsystem();
   private final TurretSubsystem turretSubsystem = new TurretSubsystem();
+  private final ShooterSubsystem shooter = new ShooterSubsystem(drivebase::getPose, turretSubsystem);
 
   // Establish a Sendable Chooser that will be able to be sent to the
   // SmartDashboard, allowing selection of desired auto
@@ -130,24 +123,17 @@ public class RobotContainer {
     } else {
       drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
     }
-
-   
-
+    turretSubsystem.setDefaultCommand(
+        new RunCommand(() -> {
+          turretSubsystem.aimAtHub(drivebase.getPose());
+        }, turretSubsystem));
     driverXbox.triangle().onTrue(Commands.runOnce(() -> turretSubsystem.setAngle(0), turretSubsystem));
-    driverXbox.cross().onTrue(Commands.runOnce(() -> turretSubsystem.setAngle(90), turretSubsystem));
+    driverXbox.square().onTrue(Commands.runOnce(() -> turretSubsystem.setAngle(90), turretSubsystem));
     driverXbox.R1().whileTrue(shooter.zeroServo());
     driverXbox.L1().whileTrue(shooter.extendServo());
-  
-    // driverXbox.cross()
-    //   .whileTrue(
-    //       Commands.run(
-    //           () -> shooter.setRPM(6000),
-    //           shooter
-    //       )
-    //   )
-    //   .onFalse(
-    //       Commands.runOnce(shooter::stop, shooter)
-    //   );
+
+    driverXbox.cross()
+        .onTrue(new ShootCommand(shooter, 2500));
 
   }
 
