@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import java.util.ArrayList;
@@ -9,13 +10,15 @@ import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -25,6 +28,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 public class ShooterSubsystem extends SubsystemBase {
 
   private final TalonFX shooterMotor;
+  private final TalonFX shooterMotor2;
   private Servo servo;
 
   private final Supplier<Pose2d> robotPoseSupplier;
@@ -48,7 +52,7 @@ public class ShooterSubsystem extends SubsystemBase {
   private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
 
   // ---- TUNING VALUES ----
-  private static final double kP = 0.12;
+  private static final double kP = 0.4;
   private static final double kI = 0.0;
   private static final double kD = 0.0;
   private static final double kS = 0.2;
@@ -76,7 +80,8 @@ public class ShooterSubsystem extends SubsystemBase {
   public ShooterSubsystem(Supplier<Pose2d> robotPoseSupplier, TurretSubsystem turretSubSystemSupplier) {
     this.robotPoseSupplier = robotPoseSupplier;
     this.turretSubSystemSupplier = turretSubSystemSupplier;
-    shooterMotor = new TalonFX(10); // <-- CHANGE ID
+    shooterMotor = new TalonFX(11);
+    shooterMotor2 = new TalonFX(12);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
@@ -87,7 +92,7 @@ public class ShooterSubsystem extends SubsystemBase {
     config.CurrentLimits.SupplyCurrentLimitEnable = true;
     config.CurrentLimits.SupplyCurrentLimit = 30;
 
-    config.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+    config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
 
     // PID + Feedforward
     config.Slot0.kP = kP;
@@ -95,9 +100,10 @@ public class ShooterSubsystem extends SubsystemBase {
     config.Slot0.kD = kD;
     config.Slot0.kS = kS;
     config.Slot0.kV = kV;
-
     shooterMotor.getConfigurator().apply(config);
-    servo = new Servo(8);
+    shooterMotor2.getConfigurator().apply(config);
+    shooterMotor2.setControl(new Follower(shooterMotor.getDeviceID(), MotorAlignmentValue.Opposed));
+    servo = new Servo(9);
     servo.setBoundsMicroseconds(2000, 1500, 1500, 1500, 1000);
 
   }
@@ -119,7 +125,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
   /** Stop the shooter */
   public void stop() {
-    shooterMotor.stopMotor();
+    shooterMotor.set(0);
   }
 
   /** Current shooter RPM (wheel RPM) */
@@ -144,7 +150,7 @@ public class ShooterSubsystem extends SubsystemBase {
   }
 
   public Command extendServo() {
-    return new RunCommand(() -> servo.setAngle(60)); // 180 is full extention
+    return new RunCommand(() -> servo.setAngle(140)); // 140 is our full extention
   }
 
   public double getLaunchAngle() {
@@ -160,7 +166,8 @@ public class ShooterSubsystem extends SubsystemBase {
         .rotateBy(robotPose.getRotation())
         .plus(robotPose.getTranslation());
     Translation3d startPos = new Translation3d(shooterXY.getX(), shooterXY.getY(), SHOOTER_OFFSET.getZ());
-    Translation3d hubPos = turretSubSystemSupplier.blueAlliance ? turretSubSystemSupplier.BlueHubPose
+    Translation3d hubPos = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue
+        ? turretSubSystemSupplier.BlueHubPose
         : turretSubSystemSupplier.RedHubPose;
     double launchSpeed = getLaunchSpeed();
     // 4️⃣ Compute vector from shooter to hub
@@ -181,7 +188,7 @@ public class ShooterSubsystem extends SubsystemBase {
   }
 
   @Override
-  public void periodic() {
+  public void simulationPeriodic() {
     double dt = 0.02 * simSpeed; // simulate ~50Hz scaled by simSpeed
     Iterator<SimulatedBall> iterator = activeBalls.iterator();
 

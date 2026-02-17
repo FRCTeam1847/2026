@@ -7,6 +7,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
+import edu.wpi.first.wpilibj.Preferences;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
@@ -18,136 +19,132 @@ import org.littletonrobotics.junction.Logger;
 
 public class TurretSubsystem extends SubsystemBase {
 
-  private final TalonFX motor = new TalonFX(9);
-  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(0);
+    private final TalonFX motor = new TalonFX(9);
+    private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(0);
 
-  // Gear ratios
-  private static final double MOTOR_TO_TURRET_RATIO = 48.0;
-  private static final double ENCODER_TO_TURRET_RATIO = 10.0;
+    private static final double MOTOR_TO_TURRET_RATIO = 48.0;
+    private static final double ENCODER_TO_TURRET_RATIO = 10.0;
 
-  public Translation3d BlueHubPose = new Translation3d(4.597, 4.035, 1.575);
-  public Translation3d RedHubPose = new Translation3d(11.938, 4.035, 1.575);
-  public boolean blueAlliance = DriverStation.getAlliance().get() == Alliance.Blue;
+    private static final String ZERO_KEY = "TurretAbsoluteZero";
+    private double absoluteZeroOffset = 0.0;
 
-  // Wrap-around tracking for absolute encoder
-  private double lastRaw = 0.0;
-  private double wrapTurns = 0.0;
+    public Translation3d BlueHubPose = new Translation3d(4.597, 4.035, 1.575);
+    public Translation3d RedHubPose = new Translation3d(11.938, 4.035, 1.575);
 
-  // Turret position offset on robot (meters)
-  private final Translation3d turretOffset = new Translation3d(0, -0.15, 0.46);
+    private final Translation3d turretOffset = new Translation3d(0, -0.15, 0.46);
 
-  public TurretSubsystem() {
-    configureMotor();
-    // No setDutyCycleRange needed; raw 0–1 × 360 gives degrees
-  }
+    // Safe movement parameters
+    private static final double MAX_PERCENT_OUTPUT = 0.25; // 25% max power
+    private static final double AIM_DEADBAND_DEGREES = 1.0; // stop if within 1°
 
-  private void configureMotor() {
-    TalonFXConfiguration cfg = new TalonFXConfiguration();
-    cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    public TurretSubsystem() {
+        configureMotor();
+        absoluteZeroOffset = Preferences.getDouble(ZERO_KEY, 0.0);
+        zeroToAbsolute();
+    }
 
-    // Software limits in motor rotations
-    cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-    cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-    cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degreesToMotorRotations(180.0);
-    cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degreesToMotorRotations(-180.0);
+    private void configureMotor() {
+        TalonFXConfiguration cfg = new TalonFXConfiguration();
+        cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+        cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
+        cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+        cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degreesToMotorRotations(180.0);
+        cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degreesToMotorRotations(-180.0);
+        motor.getConfigurator().apply(cfg);
+    }
 
-    motor.getConfigurator().apply(cfg);
-  }
+    public void setPercent(double percent) {
+        // Clamp output
+        if (percent > MAX_PERCENT_OUTPUT) percent = MAX_PERCENT_OUTPUT;
+        if (percent < -MAX_PERCENT_OUTPUT) percent = -MAX_PERCENT_OUTPUT;
+        motor.set(percent);
+    }
 
-  // --- Public API ---
+    public void setAngle(double degrees) {
+        motor.setPosition(degreesToMotorRotations(degrees));
+    }
 
-  public void setPercent(double percent) {
-    motor.set(percent);
-  }
+    public void zeroToAbsolute() {
+        double turretDeg = getAbsoluteTurretAngle();
+        motor.setPosition(degreesToMotorRotations(turretDeg));
+    }
 
-  public void setAngle(double degrees) {
-    motor.setPosition(degreesToMotorRotations(degrees));
-  }
+    public double getTurretAngle() {
+        return motorRotationsToDegrees(motor.getPosition().getValueAsDouble());
+    }
 
-  public void zeroToAbsolute() {
-    double turretDeg = getAbsoluteTurretAngle();
-    motor.setPosition(degreesToMotorRotations(turretDeg));
-  }
+    public double getAbsoluteTurretAngle() {
+        double raw = absoluteEncoder.get();
+        double adjusted = raw - absoluteZeroOffset;
+        adjusted = (adjusted % 1.0 + 1.0) % 1.0;
+        double encoderDegrees = adjusted * 360.0;
+        double turretDegrees = encoderDegrees / ENCODER_TO_TURRET_RATIO;
+        return wrapDegrees(turretDegrees);
+    }
 
-  public double getTurretAngle() {
-    // Phoenix 6 TalonFX.getPosition() -> StatusSignal<Angle>
-    double motorRotations = motor.getPosition().getValueAsDouble(); // rotations
-    return motorRotationsToDegrees(motorRotations);
-  }
+    private double degreesToMotorRotations(double turretDegrees) {
+        return (turretDegrees / 360.0) * MOTOR_TO_TURRET_RATIO;
+    }
 
-  public double getAbsoluteTurretAngle() {
-    double raw = absoluteEncoder.get(); // 0.0–1.0
-    double delta = raw - lastRaw;
-    if (delta > 0.5)
-      wrapTurns--;
-    if (delta < -0.5)
-      wrapTurns++;
-    lastRaw = raw;
+    private double motorRotationsToDegrees(double motorRotations) {
+        return (motorRotations / MOTOR_TO_TURRET_RATIO) * 360.0;
+    }
 
-    double degrees = raw * 360.0; // convert normalized PWM to degrees
-    double totalDegrees = degrees + wrapTurns * 360.0;
-    return wrapDegrees(totalDegrees / ENCODER_TO_TURRET_RATIO);
-  }
+    private double wrapDegrees(double deg) {
+        while (deg > 180.0) deg -= 360.0;
+        while (deg < -180.0) deg += 360.0;
+        return deg;
+    }
 
-  // --- Conversion helpers ---
+    private Alliance getAllianceSafe() {
+        return DriverStation.getAlliance().orElse(Alliance.Blue);
+    }
+    
+    public void aimAtHub(Pose2d robotPose) {
+        // 1. Pick the correct hub
+        Translation3d hubPose3d = (getAllianceSafe() == Alliance.Blue) ? BlueHubPose : RedHubPose;
+        Translation2d hubXY = hubPose3d.toTranslation2d();
 
-  private double degreesToMotorRotations(double turretDegrees) {
-    return (turretDegrees / 360.0) * MOTOR_TO_TURRET_RATIO;
-  }
+        // 2. Turret position in field coordinates
+        Translation2d turretFieldXY = turretOffset.toTranslation2d()
+                .rotateBy(robotPose.getRotation())
+                .plus(robotPose.getTranslation());
 
-  private double motorRotationsToDegrees(double motorRotations) {
-    return (motorRotations / MOTOR_TO_TURRET_RATIO) * 360.0;
-  }
+        // 3. Compute angle to hub
+        double dx = hubXY.getX() - turretFieldXY.getX();
+        double dy = hubXY.getY() - turretFieldXY.getY();
+        double targetYawRad = Math.atan2(dy, dx);
+        double targetYawDeg = Math.toDegrees(targetYawRad);
 
-  private double wrapDegrees(double deg) {
-    while (deg > 180.0)
-      deg -= 360.0;
-    while (deg < -180.0)
-      deg += 360.0;
-    return deg;
-  }
+        // 4. Compute relative angle from turret
+        double turretRelativeDeg = wrapDegrees(targetYawDeg - Math.toDegrees(robotPose.getRotation().getRadians()));
 
-  public void aimAtHub(Pose2d robotPose) {
-    Pose3d hubPose = new Pose3d(
-        blueAlliance ? BlueHubPose : RedHubPose,
-        new Rotation3d(0, 0, 0));
+        // 5. Compute shortest path delta
+        double currentDeg = getTurretAngle();
+        double delta = wrapDegrees(turretRelativeDeg - currentDeg);
 
-    // 5️⃣ Compute turret-relative angle
-    Translation2d turretFieldXY = turretOffset.toTranslation2d()
-        .rotateBy(robotPose.getRotation())
-        .plus(robotPose.getTranslation());
+        // 6. Only move if outside deadband
+        if (Math.abs(delta) > AIM_DEADBAND_DEGREES) {
+            double percentOutput = MAX_PERCENT_OUTPUT * Math.signum(delta);
+            setPercent(percentOutput);
+        } else {
+            setPercent(0.0);
+        }
+    }
 
-    Translation2d hubXY = hubPose.getTranslation().toTranslation2d();
+    @Override
+    public void periodic() {
+        double turretDeg = getTurretAngle();
+        double absDeg = getAbsoluteTurretAngle();
+        double turretRad = Math.toRadians(turretDeg);
 
-    double dx = hubXY.getX() - turretFieldXY.getX();
-    double dy = hubXY.getY() - turretFieldXY.getY();
+        Rotation3d turretRotation = new Rotation3d(0, 0, turretRad);
+        Pose3d turretPose = new Pose3d(turretOffset, turretRotation);
 
-    double targetYawField = Math.atan2(dy, dx);
-
-    double turretRelativeRad = targetYawField - robotPose.getRotation().getRadians();
-    double turretRelativeDeg = Math.toDegrees(turretRelativeRad);
-    turretRelativeDeg = wrapDegrees(turretRelativeDeg);
-
-    setAngle(turretRelativeDeg);
-  }
-
-  // --- Periodic logging for AdvantageScope 3D ---
-  @Override
-  public void periodic() {
-    double turretDeg = getTurretAngle();
-    double absDeg = getAbsoluteTurretAngle();
-    double turretRad = Math.toRadians(turretDeg);
-
-    // Turret rotation around vertical axis
-    Rotation3d turretRotation = new Rotation3d(0, 0, turretRad);
-    Pose3d turretPose = new Pose3d(turretOffset, turretRotation);
-    // Log 3D pose
-    Logger.recordOutput("Turret/Pose3d", turretPose);
-
-    // Log raw values
-    Logger.recordOutput("Turret/AngleDeg", turretDeg);
-    Logger.recordOutput("Turret/AbsoluteDeg", absDeg);
-    Logger.recordOutput("Turret/EncoderRaw", absoluteEncoder.get());
-    Logger.recordOutput("Turret/MotorRotations", motor.getPosition().getValueAsDouble());
-  }
+        Logger.recordOutput("Turret/Pose3d", turretPose);
+        Logger.recordOutput("Turret/AngleDeg", turretDeg);
+        Logger.recordOutput("Turret/AbsoluteDeg", absDeg);
+        Logger.recordOutput("Turret/EncoderRaw", absoluteEncoder.get());
+        Logger.recordOutput("Turret/MotorRotations", motor.getPosition().getValueAsDouble());
+    }
 }

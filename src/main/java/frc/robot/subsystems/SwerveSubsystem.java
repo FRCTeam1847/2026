@@ -27,6 +27,7 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -110,8 +111,8 @@ public class SwerveSubsystem extends SubsystemBase {
   }
 
   public Pose2d getStartingPose() {
-    DriverStation.Alliance alliance = DriverStation.getAlliance().get();
-    if (alliance == DriverStation.Alliance.Blue) {
+    boolean isBlueAlliance = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue;
+    if (isBlueAlliance) {
         return new Pose2d(new Translation2d(Meter.of(3), Meter.of(4)), Rotation2d.fromDegrees(0));
     } else {
         return new Pose2d(new Translation2d(Meter.of(16), Meter.of(4)), Rotation2d.fromDegrees(180));

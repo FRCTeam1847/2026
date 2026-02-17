@@ -8,7 +8,6 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
-import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -19,6 +18,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.ShootCommand;
+import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
@@ -44,6 +44,7 @@ public class RobotContainer {
 
   private final TurretSubsystem turretSubsystem = new TurretSubsystem();
   private final ShooterSubsystem shooter = new ShooterSubsystem(drivebase::getPose, turretSubsystem);
+  private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
 
   // Establish a Sendable Chooser that will be able to be sent to the
   // SmartDashboard, allowing selection of desired auto
@@ -116,24 +117,39 @@ public class RobotContainer {
    * Flight joysticks}.
    */
   private void configureBindings() {
-    Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
-    Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
-    if (RobotBase.isSimulation()) {
-      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    } else {
-      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    }
+    // Command driveFieldOrientedAnglularVelocity =
+    // drivebase.driveFieldOriented(driveAngularVelocity);
+    // Command driveFieldOrientedAnglularVelocityKeyboard =
+    // drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    // if (RobotBase.isSimulation()) {
+    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    // } else {
+    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    // }
     turretSubsystem.setDefaultCommand(
-        new RunCommand(() -> {
-          turretSubsystem.aimAtHub(drivebase.getPose());
-        }, turretSubsystem));
-    driverXbox.triangle().onTrue(Commands.runOnce(() -> turretSubsystem.setAngle(0), turretSubsystem));
-    driverXbox.square().onTrue(Commands.runOnce(() -> turretSubsystem.setAngle(90), turretSubsystem));
-    driverXbox.R1().whileTrue(shooter.zeroServo());
+    new RunCommand(() -> {
+    turretSubsystem.aimAtHub(drivebase.getPose());
+    }, turretSubsystem));
+    driverXbox.R2()
+        .whileTrue(indexerSubsystem.runIndexer(-1));
+    // driverXbox.triangle().onTrue(Commands.runOnce(() ->
+    // turretSubsystem.setAngle(0), turretSubsystem));
+    // driverXbox.square().onTrue(Commands.runOnce(() ->
+    // turretSubsystem.setAngle(90), turretSubsystem));
+    driverXbox.L2().whileTrue(shooter.zeroServo());
     driverXbox.L1().whileTrue(shooter.extendServo());
 
     driverXbox.cross()
-        .onTrue(new ShootCommand(shooter, 2500));
+        .onTrue(new ShootCommand(shooter, 2000)).onFalse(new ShootCommand(shooter, 0));
+
+    // driverXbox.triangle().onTrue(
+    // new InstantCommand(() -> turretSubsystem.setAngle(0), turretSubsystem));
+
+    // driverXbox.square().onTrue(
+    // new InstantCommand(() -> turretSubsystem.setAngle(90), turretSubsystem));
+
+    // driverXbox.L2().onTrue(
+    // new InstantCommand(() -> turretSubsystem.setAngle(-90), turretSubsystem));
 
   }
 
