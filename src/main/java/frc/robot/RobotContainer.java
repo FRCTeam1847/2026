@@ -132,15 +132,15 @@ public class RobotContainer {
     }, turretSubsystem));
     driverXbox.R2()
         .whileTrue(indexerSubsystem.runIndexer(-1));
-    // driverXbox.triangle().onTrue(Commands.runOnce(() ->
-    // turretSubsystem.setAngle(0), turretSubsystem));
-    // driverXbox.square().onTrue(Commands.runOnce(() ->
-    // turretSubsystem.setAngle(90), turretSubsystem));
+    driverXbox.triangle().onTrue(Commands.runOnce(() ->
+    turretSubsystem.setAngle(0), turretSubsystem));
+    driverXbox.square().onTrue(Commands.runOnce(() ->
+    turretSubsystem.setAngle(90), turretSubsystem));
     driverXbox.L2().whileTrue(shooter.zeroServo());
     driverXbox.L1().whileTrue(shooter.extendServo());
 
     driverXbox.cross()
-        .onTrue(new ShootCommand(shooter, 2000)).onFalse(new ShootCommand(shooter, 0));
+        .onTrue(new ShootCommand(shooter, 1000)).onFalse(new ShootCommand(shooter, 0));
 
     // driverXbox.triangle().onTrue(
     // new InstantCommand(() -> turretSubsystem.setAngle(0), turretSubsystem));

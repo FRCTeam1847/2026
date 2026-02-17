@@ -35,7 +35,7 @@ public class TurretSubsystem extends SubsystemBase {
 
     // Safe movement parameters
     private static final double MAX_PERCENT_OUTPUT = 0.25; // 25% max power
-    private static final double AIM_DEADBAND_DEGREES = 1.0; // stop if within 1°
+    private static final double AIM_DEADBAND_DEGREES = 5.0; // stop if within 1°
 
     public TurretSubsystem() {
         configureMotor();
