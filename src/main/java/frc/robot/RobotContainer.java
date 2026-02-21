@@ -8,6 +8,7 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -117,15 +118,15 @@ public class RobotContainer {
    * Flight joysticks}.
    */
   private void configureBindings() {
-    // Command driveFieldOrientedAnglularVelocity =
-    // drivebase.driveFieldOriented(driveAngularVelocity);
-    // Command driveFieldOrientedAnglularVelocityKeyboard =
-    // drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
-    // if (RobotBase.isSimulation()) {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    // } else {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    // }
+    Command driveFieldOrientedAnglularVelocity =
+    drivebase.driveFieldOriented(driveAngularVelocity);
+    Command driveFieldOrientedAnglularVelocityKeyboard =
+    drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    if (RobotBase.isSimulation()) {
+    drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    } else {
+    drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    }
     turretSubsystem.setDefaultCommand(
     new RunCommand(() -> {
     turretSubsystem.aimAtHub(drivebase.getPose());
@@ -133,9 +134,9 @@ public class RobotContainer {
     driverXbox.R2()
         .whileTrue(indexerSubsystem.runIndexer(-1));
     driverXbox.triangle().onTrue(Commands.runOnce(() ->
-    turretSubsystem.setAngle(0), turretSubsystem));
+    turretSubsystem.setPercent(0.2), turretSubsystem));
     driverXbox.square().onTrue(Commands.runOnce(() ->
-    turretSubsystem.setAngle(90), turretSubsystem));
+    turretSubsystem.setPercent(-0.2), turretSubsystem));
     driverXbox.L2().whileTrue(shooter.zeroServo());
     driverXbox.L1().whileTrue(shooter.extendServo());
 
