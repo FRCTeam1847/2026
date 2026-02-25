@@ -7,8 +7,7 @@ package frc.robot;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Filesystem;
-import edu.wpi.first.wpilibj.RobotBase;
+
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -20,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.ShootCommand;
 import frc.robot.subsystems.IndexerSubsystem;
+import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
@@ -40,12 +40,13 @@ public class RobotContainer {
   // Replace with CommandPS4Controller or CommandJoystick if needed
   final CommandPS5Controller driverXbox = new CommandPS5Controller(0);
   // The robot's subsystems and commands are defined here...
-  private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
-      "swerve"));
+  // private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
+  //     "swerve"));
 
-  private final TurretSubsystem turretSubsystem = new TurretSubsystem();
-  private final ShooterSubsystem shooter = new ShooterSubsystem(drivebase::getPose, turretSubsystem);
-  private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
+  // private final TurretSubsystem turretSubsystem = new TurretSubsystem();
+  // private final ShooterSubsystem shooter = new ShooterSubsystem(drivebase::getPose, turretSubsystem);
+  // private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
+  private final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
 
   // Establish a Sendable Chooser that will be able to be sent to the
   // SmartDashboard, allowing selection of desired auto
@@ -55,22 +56,22 @@ public class RobotContainer {
    * Converts driver input into a field-relative ChassisSpeeds that is controlled
    * by angular velocity.
    */
-  SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
-      () -> driverXbox.getLeftY() * -1,
-      () -> driverXbox.getLeftX() * -1)
-      .withControllerRotationAxis(driverXbox::getRightX)
-      .deadband(OperatorConstants.DEADBAND)
-      .scaleTranslation(0.5)
-      .allianceRelativeControl(true);
+  // SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
+  //     () -> driverXbox.getLeftY() * -1,
+  //     () -> driverXbox.getLeftX() * -1)
+  //     .withControllerRotationAxis(driverXbox::getRightX)
+  //     .deadband(OperatorConstants.DEADBAND)
+  //     .scaleTranslation(0.5)
+  //     .allianceRelativeControl(true);
 
-  SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
-      () -> -driverXbox.getLeftY(),
-      () -> -driverXbox.getLeftX())
-      .withControllerRotationAxis(() -> driverXbox.getRawAxis(
-          2))
-      .deadband(OperatorConstants.DEADBAND)
-      .scaleTranslation(0.5)
-      .allianceRelativeControl(true);
+  // SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
+  //     () -> -driverXbox.getLeftY(),
+  //     () -> -driverXbox.getLeftX())
+  //     .withControllerRotationAxis(() -> driverXbox.getRawAxis(
+  //         2))
+  //     .deadband(OperatorConstants.DEADBAND)
+  //     .scaleTranslation(0.5)
+  //     .allianceRelativeControl(true);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -100,7 +101,7 @@ public class RobotContainer {
     SmartDashboard.putData("Auto Chooser", autoChooser);
     // m_exampleSubsystem.setDefaultCommand(m_exampleSubsystem.setAngle(Degrees.of(0)));
 
-    turretSubsystem.zeroToAbsolute();
+    // turretSubsystem.zeroToAbsolute();
 
   }
 
@@ -118,39 +119,35 @@ public class RobotContainer {
    * Flight joysticks}.
    */
   private void configureBindings() {
-    Command driveFieldOrientedAnglularVelocity =
-    drivebase.driveFieldOriented(driveAngularVelocity);
-    Command driveFieldOrientedAnglularVelocityKeyboard =
-    drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
-    if (RobotBase.isSimulation()) {
-    drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    } else {
-    drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    }
-    turretSubsystem.setDefaultCommand(
-    new RunCommand(() -> {
-    turretSubsystem.aimAtHub(drivebase.getPose());
-    }, turretSubsystem));
-    driverXbox.R2()
-        .whileTrue(indexerSubsystem.runIndexer(-1));
-    driverXbox.triangle().onTrue(Commands.runOnce(() ->
-    turretSubsystem.setPercent(0.2), turretSubsystem));
-    driverXbox.square().onTrue(Commands.runOnce(() ->
-    turretSubsystem.setPercent(-0.2), turretSubsystem));
-    driverXbox.L2().whileTrue(shooter.zeroServo());
-    driverXbox.L1().whileTrue(shooter.extendServo());
+    // Command driveFieldOrientedAnglularVelocity =
+    // drivebase.driveFieldOriented(driveAngularVelocity);
+    // Command driveFieldOrientedAnglularVelocityKeyboard =
+    // drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    // if (RobotBase.isSimulation()) {
+    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    // } else {
+    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    // }
+    // turretSubsystem.setDefaultCommand(
+    // new RunCommand(() -> {
+    // turretSubsystem.aimAtHub(drivebase.getPose());
+    // }, turretSubsystem));
+    // driverXbox.R2()
+    //     .whileTrue(indexerSubsystem.runIndexer(-1));
+    // driverXbox.triangle().onTrue(Commands.runOnce(() ->
+    // turretSubsystem.setPercent(0.2), turretSubsystem));
+    // driverXbox.square().onTrue(Commands.runOnce(() ->
+    // turretSubsystem.setPercent(-0.2), turretSubsystem));
+    // driverXbox.L2().whileTrue(shooter.zeroServo());
+    // driverXbox.L1().whileTrue(shooter.extendServo());
 
-    driverXbox.cross()
-        .onTrue(new ShootCommand(shooter, 1000)).onFalse(new ShootCommand(shooter, 0));
+    // driverXbox.cross()
+    //     .onTrue(new ShootCommand(shooter, 1000)).onFalse(new ShootCommand(shooter, 0));
 
-    // driverXbox.triangle().onTrue(
-    // new InstantCommand(() -> turretSubsystem.setAngle(0), turretSubsystem));
-
-    // driverXbox.square().onTrue(
-    // new InstantCommand(() -> turretSubsystem.setAngle(90), turretSubsystem));
-
-    // driverXbox.L2().onTrue(
-    // new InstantCommand(() -> turretSubsystem.setAngle(-90), turretSubsystem));
+  
+  driverXbox.cross().onTrue(Commands.runOnce(() ->
+     intakeSubsystem.setArmPosition(90), intakeSubsystem));
+  
 
   }
 
@@ -166,6 +163,6 @@ public class RobotContainer {
   }
 
   public void setMotorBrake(boolean brake) {
-    drivebase.setMotorBrake(brake);
+    // drivebase.setMotorBrake(brake);
   }
 }
