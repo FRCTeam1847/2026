@@ -3,15 +3,7 @@ package frc.robot.subsystems;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-
-// CTRE Phoenix 6
-import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.controls.DutyCycleOut;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.signals.InvertedValue;
-import com.ctre.phoenix6.signals.NeutralModeValue;
-
-// REVLib 2025+ SparkMax API
+import frc.robot.Constants.IndexerConstants;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkMaxConfig;
@@ -19,8 +11,8 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 public class IndexerSubsystem extends SubsystemBase {
 
-  private final SparkMax neo = new SparkMax(11, MotorType.kBrushless);
-  private final SparkMax neo2 = new SparkMax(10, MotorType.kBrushless);
+  private final SparkMax neo = new SparkMax(IndexerConstants.Neo_1_ID, MotorType.kBrushless);
+  // private final SparkMax neo2 = new SparkMax(10, MotorType.kBrushless);
 
   public IndexerSubsystem() {
 
@@ -41,10 +33,10 @@ public class IndexerSubsystem extends SubsystemBase {
         .inverted(true); // set inversion if needed
 
     // apply configuration (reset safe parameters before applying)
-    neo2.configure(
-        neoConfig,
-        com.revrobotics.ResetMode.kResetSafeParameters,
-        com.revrobotics.PersistMode.kPersistParameters);
+    // neo2.configure(
+    //     neoConfig,
+    //     com.revrobotics.ResetMode.kResetSafeParameters,
+    //     com.revrobotics.PersistMode.kPersistParameters);
   }
 
   /** Run both motors at the same duty cycle (-1.0 to 1.0). */
@@ -52,7 +44,7 @@ public class IndexerSubsystem extends SubsystemBase {
 
     // REV SparkMax
     neo.set(speed);
-    neo2.set(speed);
+    // neo2.set(speed);
   }
 
   public Command runIndexer(double speed) {
@@ -74,10 +66,6 @@ public class IndexerSubsystem extends SubsystemBase {
   }
 
   public void stop() {
-    // setSpeed(0.0);
-    neo2.set(0.0);
-
-    // REV SparkMax
-    neo.set(0.0);
+    neo.stopMotor();
   }
 }

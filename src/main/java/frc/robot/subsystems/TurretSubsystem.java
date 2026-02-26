@@ -8,19 +8,24 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj.Preferences;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Robot;
+import frc.robot.Constants.TurretConstants;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 
+import java.util.function.Supplier;
+
 import org.littletonrobotics.junction.Logger;
 
 public class TurretSubsystem extends SubsystemBase {
 
-  private final TalonFX motor = new TalonFX(9);
-  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(0);
+  private final TalonFX turretMotor = new TalonFX(TurretConstants.Motor_Kraken_ID);
+  private final DutyCycleEncoder turretAbsoluteEncoder = new DutyCycleEncoder(TurretConstants.Encoder_PWM_ID);
 
   private static final double MOTOR_TO_TURRET_RATIO = 48.0;
   private static final double ENCODER_TO_TURRET_RATIO = 10.0;
@@ -50,7 +55,7 @@ public class TurretSubsystem extends SubsystemBase {
     cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
     cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degreesToMotorRotations(130.0);
     cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degreesToMotorRotations(-130.0);
-    motor.getConfigurator().apply(cfg);
+    turretMotor.getConfigurator().apply(cfg);
   }
 
   public void setPercent(double percent) {
@@ -59,24 +64,24 @@ public class TurretSubsystem extends SubsystemBase {
       percent = MAX_PERCENT_OUTPUT;
     if (percent < -MAX_PERCENT_OUTPUT)
       percent = -MAX_PERCENT_OUTPUT;
-    motor.set(percent);
+    turretMotor.set(percent);
   }
 
   public void setAngle(double degrees) {
-    motor.setPosition(degreesToMotorRotations(degrees));
+    turretMotor.setPosition(degreesToMotorRotations(degrees));
   }
 
   public void zeroToAbsolute() {
     double turretDeg = getAbsoluteTurretAngle();
-    motor.setPosition(degreesToMotorRotations(turretDeg));
+    turretMotor.setPosition(degreesToMotorRotations(turretDeg));
   }
 
   public double getTurretAngle() {
-    return motorRotationsToDegrees(motor.getPosition().getValueAsDouble());
+    return motorRotationsToDegrees(turretMotor.getPosition().getValueAsDouble());
   }
 
   public double getAbsoluteTurretAngle() {
-    double raw = absoluteEncoder.get();
+    double raw = turretAbsoluteEncoder.get();
     double adjusted = raw - absoluteZeroOffset;
     adjusted = (adjusted % 1.0 + 1.0) % 1.0;
     double encoderDegrees = adjusted * 360.0;
@@ -103,6 +108,7 @@ public class TurretSubsystem extends SubsystemBase {
   private Alliance getAllianceSafe() {
     return DriverStation.getAlliance().orElse(Alliance.Blue);
   }
+  
 
   public void aimAtHub(Pose2d robotPose) {
     // 1. Pick the correct hub
@@ -153,6 +159,17 @@ public class TurretSubsystem extends SubsystemBase {
     } else {
       setPercent(0.0);
     }
+    if(Robot.isSimulation()){
+      setAngle(turretRelativeDeg);
+    }
+  }
+
+  public Command aimAtHubCommand(Supplier<Pose2d> poseSupplier) {
+    return run(() -> aimAtHub(poseSupplier.get()));
+  }
+
+  public Command setPercentageCommand(double percent) {
+    return run(() -> setPercent(percent));
   }
 
   @Override
@@ -167,7 +184,12 @@ public class TurretSubsystem extends SubsystemBase {
     Logger.recordOutput("Turret/Pose3d", turretPose);
     Logger.recordOutput("Turret/AngleDeg", turretDeg);
     Logger.recordOutput("Turret/AbsoluteDeg", absDeg);
-    Logger.recordOutput("Turret/EncoderRaw", absoluteEncoder.get());
-    Logger.recordOutput("Turret/MotorRotations", motor.getPosition().getValueAsDouble());
+    Logger.recordOutput("Turret/EncoderRaw", turretAbsoluteEncoder.get());
+    Logger.recordOutput("Turret/MotorRotations", turretMotor.getPosition().getValueAsDouble());
+  }
+
+  @Override
+  public void simulationPeriodic() {
+  
   }
 }

@@ -1,28 +1,48 @@
 package frc.robot.commands;
 
 import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
-import edu.wpi.first.wpilibj2.command.WaitCommand;
-import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
+import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 
-public class ShootCommand extends SequentialCommandGroup {
+public class ShootCommand extends Command {
 
-  public ShootCommand(ShooterSubsystem shooter, double rpm) {
-    addRequirements(shooter);
+  private final ShooterSubsystem shooter;
+  private final IndexerSubsystem indexer;
 
-    addCommands(
-        new InstantCommand(() -> shooter.setRPM(rpm), shooter),
+  public ShootCommand(ShooterSubsystem shooter, IndexerSubsystem indexer) {
+        this.shooter = shooter;
+        this.indexer = indexer;
+        addRequirements(shooter, indexer);
+    }
 
-        new WaitUntilCommand(() -> shooter.atSpeed(rpm, 100)),
+  @Override
+  public void execute() {
+    // 1. Always set target RPM
+    double rpm = shooter.calculateFlywheelRPM();
+    shooter.setRPM(rpm);
 
-        new InstantCommand(() -> shooter.extendServo(), shooter),
+    // 2. Feed balls only if shooter is at speed
+    if (shooter.atSpeed(rpm, 100)) {
+      indexer.runIndexer(0.5); // feed balls
+    } else {
+      indexer.runIndexer(0); // stop feeding until at speed
+    }
 
-        RobotBase.isSimulation() ? new InstantCommand(shooter::simulateShot, shooter) : new InstantCommand(),
+    // Optional: simulate shooting in sim
+    if (RobotBase.isSimulation()) {
+      shooter.simulateShot();
+    }
+  }
 
-        new WaitCommand(0.1),
+  @Override
+  public void end(boolean interrupted) {
+    shooter.stop();
+    indexer.stop();
+  }
 
-        new InstantCommand(shooter::zeroServo, shooter));
+  @Override
+  public boolean isFinished() {
+    return false; // never finish automatically
   }
 }

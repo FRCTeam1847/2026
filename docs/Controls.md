@@ -1,0 +1,2 @@
+[Button Layout Site](https://www.padcrafter.com/index.php?templates=FRC+1847+2026&plat=1&rightStick=Drive+Rotate&leftStick=Drive+Direction&aButton=Intake+Out&rightBumper=Intake&leftBumper=Shoot&dpadRight=Turret+Right&dpadLeft=Turret+Left&dpadUp=Index+In&dpadDown=Index+Out&leftTrigger=Toggle+Auto+Track&col=%23242424%2C%23606A6E%2C%23FFFFFF&rightTrigger=Toggle+Auto+Hood&yButton=Hood+Up&xButton=Hood+Down&bButton=Intake+In)
+![PS5 Controls](Controls.png)

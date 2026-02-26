@@ -1,12 +1,14 @@
 package frc.robot.subsystems;
 
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants.IntakeConstants;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+
+import org.littletonrobotics.junction.Logger;
+import com.revrobotics.spark.SparkMax;
+import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
@@ -14,49 +16,36 @@ import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
 import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import com.ctre.phoenix6.hardware.TalonFX;
-import org.littletonrobotics.junction.Logger;
-import com.ctre.phoenix6.controls.DutyCycleOut;
-import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
-public class IntakeSubsystem extends SubsystemBase {
-
+/**
+ * Arm subsystem using SparkMAX with NEO motor
+ */
+@Logged(name = "IntakeSystem")
+public class ArmSubsystem extends SubsystemBase {
   // ========================
   // Hardware
   // ========================
-  private final SparkMax armMotor;
-  private final DutyCycleEncoder intakeAbsoluteEncoder;
 
-  // Roller (Kraken X60)
-  private final TalonFX rollerMotor;
-  private final DutyCycleOut rollerRequest;
+  private final SparkMax motor = new SparkMax(21, MotorType.kBrushless);
+  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(1);
 
   // ========================
   // Constants
   // ========================
+
   private static final double GEAR_RATIO = 160.0;
   private static final double ARM_LENGTH = 0.4; // meters
-  private static final double ARM_MASS = 3.17515; // kg
+  private static final double ARM_MASS = 3.0; // kg
   private static final double MIN_ANGLE = 0.0;
   private static final double MAX_ANGLE = Math.PI / 2.0;
 
-  // Feedforward values
+  // Feedforward values (yours)
   private static final double kS = 0.0;
   private static final double kG = 0.12;
   private static final double kV = 3.10;
   private static final double kA = 0.0;
-
-  public IntakeSubsystem() {
-    rollerMotor = new TalonFX(IntakeConstants.ROLLER_Kraken_ID);
-    rollerRequest = new DutyCycleOut(0);
-    rollerMotor.setNeutralMode(NeutralModeValue.Brake);
-    armMotor = new SparkMax(IntakeConstants.ARM_Neo_ID, MotorType.kBrushless);
-    intakeAbsoluteEncoder = new DutyCycleEncoder(1);
-    pid.setTolerance(Math.toRadians(2));
-    SmartDashboard.putData("Intake Arm", mech);
-  }
 
   // ========================
   // Control
@@ -88,6 +77,11 @@ public class IntakeSubsystem extends SubsystemBase {
   private final MechanismRoot2d root = mech.getRoot("root", 1.5, 1.5);
   private final MechanismLigament2d armLigament = root.append(new MechanismLigament2d("arm", ARM_LENGTH, 45));
 
+  public ArmSubsystem() {
+    pid.setTolerance(Math.toRadians(2));
+    SmartDashboard.putData("Intake Arm", mech);
+  }
+
   // ========================
   // Angle Getter
   // ========================
@@ -96,7 +90,7 @@ public class IntakeSubsystem extends SubsystemBase {
     if (RobotBase.isSimulation()) {
       return armSim.getAngleRads();
     } else {
-      return intakeAbsoluteEncoder.get() * 2.0 * Math.PI;
+      return absoluteEncoder.get() * 2.0 * Math.PI;
     }
   }
 
@@ -106,17 +100,6 @@ public class IntakeSubsystem extends SubsystemBase {
 
   public void setTargetDegrees(double degrees) {
     targetAngleRad = Math.toRadians(degrees);
-  }
-
-  // ---------------- ROLLERS ----------------
-
-  public void runRollers(double percent) {
-    rollerMotor.setControl(
-        rollerRequest.withOutput(percent));
-  }
-
-  public void stopRollers() {
-    rollerMotor.stopMotor();
   }
 
   // ========================
@@ -133,13 +116,11 @@ public class IntakeSubsystem extends SubsystemBase {
 
     appliedVoltage = MathUtil.clamp(pidOutput + ffOutput, -12, 12);
 
-    armMotor.setVoltage(appliedVoltage);
+    motor.setVoltage(appliedVoltage);
 
     Logger.recordOutput("IntakeArm/Arm Angle Deg", Math.toDegrees(currentAngle));
     Logger.recordOutput("IntakeArm/Target Deg", Math.toDegrees(targetAngleRad));
     Logger.recordOutput("IntakeArm/Applied Voltage", appliedVoltage);
-    Logger.recordOutput("IntakeArm/Rollers/RPM", rollerMotor.getVelocity().getValueAsDouble() * 60.0);
-    Logger.recordOutput("IntakeArm/Rollers/Percentage", rollerRequest.Output);
   }
 
   @Override
@@ -164,7 +145,7 @@ public class IntakeSubsystem extends SubsystemBase {
   public Command stopArm() {
     return runOnce(() -> {
       appliedVoltage = 0;
-      armMotor.setVoltage(0);
+      motor.setVoltage(0);
     });
   }
 }

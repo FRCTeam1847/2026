@@ -39,5 +39,27 @@ public final class Constants {
     public static final double LEFT_Y_DEADBAND = 0.1;
     public static final double RIGHT_X_DEADBAND = 0.1;
     public static final double TURN_CONSTANT = 6;
+    public static final int DRIVER_CONTROLLER_PORT = 0;
+  }
+
+  public static class IntakeConstants {
+    public static final int ROLLER_Kraken_ID = 9;
+    public static final int ARM_Neo_ID = 20;
+    public static final int ARM_ENCODER_PWM_ID = 1;
+  }
+
+  public static class IndexerConstants {
+    public static final int Neo_1_ID = 21;
+  }
+
+  public static class TurretConstants {
+    public static final int Motor_Kraken_ID = 10;
+    public static final int Encoder_PWM_ID = 2;
+  }
+
+  public static class ShooterConstants {
+    public static final int FLYWHEEL_1_Kraken_ID = 11;
+    public static final int FLYWHEEL_2_Kraken_ID = 12;
+    public static final int HOOD_PWM_ID = 3;
   }
 }
