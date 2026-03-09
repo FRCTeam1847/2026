@@ -161,6 +161,12 @@ public class IntakeSubsystem extends SubsystemBase {
         .until(this::atSetpoint);
   }
 
+  public Command intakeFuel(){
+    return run(()->runRollers(-0.4));
+  }
+  public Command stopIntakeCommand(){
+    return run(()-> rollerMotor.stopMotor());
+  }
   public Command stopArm() {
     return runOnce(() -> {
       appliedVoltage = 0;

@@ -6,6 +6,8 @@ package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
+
+import edu.wpi.first.net.PortForwarder;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.RobotBase;
@@ -44,15 +46,15 @@ public class RobotContainer {
   private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
       "swerve"));
 
-  private final TurretSubsystem turretSubsystem = new TurretSubsystem();
-  private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(drivebase::getPose, turretSubsystem);
+  // private final TurretSubsystem turretSubsystem = new TurretSubsystem();
+   private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem();
   private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
-  // private final ArmSubsystem armSubsystem = new ArmSubsystem();
-  private final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
+  // // private final ArmSubsystem armSubsystem = new ArmSubsystem();
+  //private final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
 
   // Establish a Sendable Chooser that will be able to be sent to the
   // SmartDashboard, allowing selection of desired auto
-  private final SendableChooser<Command> autoChooser;
+  // private final SendableChooser<Command> autoChooser;
 
   /**
    * Converts driver input into a field-relative ChassisSpeeds that is controlled
@@ -75,9 +77,9 @@ public class RobotContainer {
       .scaleTranslation(0.5)
       .allianceRelativeControl(true);
 
-  private final Command aimAtHubCommand = new RunCommand(
-      () -> turretSubsystem.aimAtHub(drivebase.getPose()),
-      turretSubsystem);
+  // private final Command aimAtHubCommand = new RunCommand(
+  // () -> turretSubsystem.aimAtHub(drivebase.getPose()),
+  // turretSubsystem);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -88,13 +90,13 @@ public class RobotContainer {
     DriverStation.silenceJoystickConnectionWarning(true);
 
     // Create the NamedCommands that will be used in PathPlanner
-    NamedCommands.registerCommand("test", Commands.print("I EXIST"));
+    // sNamedCommands.registerCommand("test", Commands.print("I EXIST"));
 
     // // Have the autoChooser pull in all PathPlanner autos as options
-    autoChooser = AutoBuilder.buildAutoChooser();
+    // autoChooser = AutoBuilder.buildAutoChooser();
 
-    // // Set the default auto (do nothing)
-    autoChooser.setDefaultOption("Do Nothing", Commands.none());
+    // // // Set the default auto (do nothing)
+    // autoChooser.setDefaultOption("Do Nothing", Commands.none());
 
     // // Add a simple auto option to have the robot drive forward for 1 second then
     // // stop
@@ -104,9 +106,12 @@ public class RobotContainer {
     // drivebase.driveForward().withTimeout(1));
 
     // // Put the autoChooser on the SmartDashboard
-    SmartDashboard.putData("Auto Chooser", autoChooser);
+    // SmartDashboard.putData("Auto Chooser", autoChooser);
 
-    turretSubsystem.zeroToAbsolute();
+    // turretSubsystem.setSuppliers(
+    // drivebase::getPose, // Pose2d supplier
+    // drivebase::getRobotVelocity // ChassisSpeeds supplier
+    // );
 
   }
 
@@ -125,54 +130,87 @@ public class RobotContainer {
    */
   private void configureBindings() {
     // #region Drive Controls
-    Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
-    Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    Command driveFieldOrientedAnglularVelocity =
+    drivebase.driveFieldOriented(driveAngularVelocity);
+    Command driveFieldOrientedAnglularVelocityKeyboard =
+    drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
     if (RobotBase.isSimulation()) {
-      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
     } else {
-      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
     }
 
     // #endregion
 
-    // #region Intake Controls
-    driverController.circle().whileTrue(intakeSubsystem.moveToAngle(90));// .onFalse(intakeSubsystem.stopArm());
-    driverController.cross().whileTrue(intakeSubsystem.moveToAngle(0));
-    // #endregion
+    // // #region Intake Controls
+    // driverController.circle().whileTrue(intakeSubsystem.moveToAngle(90));//
+    // .onFalse(intakeSubsystem.stopArm());
+    // driverController.cross().whileTrue(intakeSubsystem.moveToAngle(0));
+    //driverController.cross().whileTrue(intakeSubsystem.intakeFuel()).whileFalse(intakeSubsystem.stopIntakeCommand());
+    // // #endregion
 
     // #region Indexer Manual Controls
-    driverController.povUp().whileTrue(indexerSubsystem.runIndexer(0.5));
-    driverController.povDown().whileTrue(indexerSubsystem.runIndexer(-0.5));
+    driverController.povUp().whileTrue(indexerSubsystem.runIndexer(.75));
+    driverController.povDown().whileTrue(indexerSubsystem.runIndexer(-.75));
     // #endregion
 
     // #region Turret Controls
-    turretSubsystem.setDefaultCommand(turretSubsystem.run(() -> turretSubsystem.setPercent(0.0)));
-    driverController.L2().onTrue(
-        Commands.runOnce(() -> {
-          if (aimAtHubCommand.isScheduled()) {
-            aimAtHubCommand.cancel(); // stop aiming
-          } else {
-            aimAtHubCommand.schedule(); // start aiming
-          }
-        }));
+    // turretSubsystem.setDefaultCommand(turretSubsystem.run(() ->
+    // turretSubsystem.setPercent(0.0)));
+    // driverController.L2().onTrue(turretSubsystem.trackAprilTagCommand());
+    // Commands.runOnce(() -> {
+    // if (aimAtHubCommand.isScheduled()) {
+    // aimAtHubCommand.cancel(); // stop aiming
+    // } else {
+    // aimAtHubCommand.schedule(); // start aiming
+    // }
+    // }));
 
-    driverController.povRight().onTrue(turretSubsystem.setPercentageCommand(0.25));
-    driverController.povLeft().onTrue(turretSubsystem.setPercentageCommand(-0.25));
+    // driverController.povRight().onTrue(turretSubsystem.setPercentageCommand(0.25));
+    // driverController.povLeft().onTrue(turretSubsystem.setPercentageCommand(-0.25));
+
+    // Hold A to auto-aim turret (AUTO_AIM mode)
+    // driverController.cross().whileTrue(
+    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.AUTO_AIM)).onFalse(
+    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.HOLD_ANGLE));
+
+    // // Manual turret overrides for debugging
+    // driverController.L2().whileTrue(
+    // turretSubsystem.run(() -> turretSubsystem.setManualPercent(0.2)));
+    // driverController.R2().whileTrue(
+    // turretSubsystem.run(() -> turretSubsystem.setManualPercent(-0.2)));
+
+    // // Example: field-lock mode (hold hub)
+    // driverController.square().whileTrue(
+    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.FIELD_LOCK)).onFalse(
+    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.HOLD_ANGLE));
+
+    // // Example: scan mode for testing
+    // driverController.circle().whileTrue(
+    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.SCAN)).onFalse(
+    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.HOLD_ANGLE));
     // #endregion
 
     // #region Shooter Controls
-    shooterSubsystem
-        .setDefaultCommand(shooterSubsystem.dynamicHoodCommand(() -> shooterSubsystem.calculateLaunchAngle()));
+    // shooterSubsystem
+    // .setDefaultCommand(shooterSubsystem.dynamicHoodCommand(() ->
+    // shooterSubsystem.calculateLaunchAngle()));
     driverController.triangle().whileTrue(shooterSubsystem.raiseServo());
     driverController.square().whileTrue(shooterSubsystem.lowerServo());
-    driverController.R2().toggleOnTrue(new InstantCommand(() -> shooterSubsystem.toggleDynamicHood()));
+    // driverController.R2().toggleOnTrue(new InstantCommand(() ->
+    // shooterSubsystem.toggleDynamicHood()));
 
     driverController.L1()
-        .whileTrue(new ShootCommand(shooterSubsystem, indexerSubsystem)).onFalse(new InstantCommand(() -> {
-          shooterSubsystem.stop();
-          indexerSubsystem.stop();
-        }));
-
+    .whileTrue(new ShootCommand(shooterSubsystem, indexerSubsystem)).onFalse(new
+    InstantCommand(() -> {
+    shooterSubsystem.stop();
+    indexerSubsystem.stop();
+    }));
+    // driverController.L1().whileTrue(new InstantCommand(() -> {
+    // double rpm = shooterSubsystem.calculateFlywheelRPM();
+    // shooterSubsystem.setRPM(rpm);
+    // })).whileFalse(new InstantCommand(() -> shooterSubsystem.stop()));
+    // // #endregion
   }
 
   /**
@@ -183,10 +221,10 @@ public class RobotContainer {
   public Command getAutonomousCommand() {
     // Pass in the selected auto from the SmartDashboard as our desired autnomous
     // commmand
-    return autoChooser.getSelected();
+    return new InstantCommand();// autoChooser.getSelected();
   }
 
   public void setMotorBrake(boolean brake) {
-    drivebase.setMotorBrake(brake);
+    // drivebase.setMotorBrake(brake);
   }
 }

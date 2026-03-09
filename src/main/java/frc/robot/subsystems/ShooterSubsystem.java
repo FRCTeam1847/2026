@@ -36,8 +36,8 @@ public class ShooterSubsystem extends SubsystemBase {
   private final TalonFX shooterMotor2;
   private Servo servo;
 
-  private final Supplier<Pose2d> robotPoseSupplier;
-  private final TurretSubsystem turretSubSystemSupplier;
+  // private final Supplier<Pose2d> robotPoseSupplier;
+  // private final TurretSubsystem turretSubSystemSupplier;
 
   private static class SimulatedBall {
     Translation3d pos;
@@ -64,7 +64,7 @@ public class ShooterSubsystem extends SubsystemBase {
   private static final double kV = 0.12;
 
   private static double targetRPM = 0.0;
-  private final double minRPM = 1200; // fallback RPM if no target
+  private final double minRPM = 3500; // fallback RPM if no target
   private final double maxRPM = 6000; // max safe RPM
 
   // Gear ratio (motor rotations per wheel rotation)
@@ -104,9 +104,9 @@ public class ShooterSubsystem extends SubsystemBase {
 
   private double filteredDistance = 0;
 
-  public ShooterSubsystem(Supplier<Pose2d> robotPoseSupplier, TurretSubsystem turretSubSystemSupplier) {
-    this.robotPoseSupplier = robotPoseSupplier;
-    this.turretSubSystemSupplier = turretSubSystemSupplier;
+  public ShooterSubsystem() {
+    // this.robotPoseSupplier = robotPoseSupplier;
+    // this.turretSubSystemSupplier = turretSubSystemSupplier;
     shooterMotor = new TalonFX(ShooterConstants.FLYWHEEL_1_Kraken_ID);
     shooterMotor2 = new TalonFX(ShooterConstants.FLYWHEEL_2_Kraken_ID);
 
@@ -257,38 +257,38 @@ public class ShooterSubsystem extends SubsystemBase {
   }
 
   /** Call this to fire a simulated ball */
-  public void simulateShot() {
-    double now = Timer.getFPGATimestamp(); // returns seconds
-    if (now - lastShotTime < SHOOT_INTERVAL) {
-      return; // too soon, skip spawning
-    }
-    lastShotTime = now;
-    Pose2d robotPose = robotPoseSupplier.get();
-    double totalYaw = robotPose.getRotation().getRadians() + Math.toRadians(turretSubSystemSupplier.getTurretAngle());
-    Translation2d shooterXY = SHOOTER_OFFSET.toTranslation2d()
-        .rotateBy(robotPose.getRotation())
-        .plus(robotPose.getTranslation());
-    Translation3d startPos = new Translation3d(shooterXY.getX(), shooterXY.getY(), SHOOTER_OFFSET.getZ());
-    Translation3d hubPos = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue
-        ? turretSubSystemSupplier.BlueHubPose
-        : turretSubSystemSupplier.RedHubPose;
-    double launchSpeed = getLaunchSpeed();
-    // 4️⃣ Compute vector from shooter to hub
-    double dx = hubPos.getX() - startPos.getX();
-    double dy = hubPos.getY() - startPos.getY();
-    double verticalOffset = 2.0;
-    double dz = (hubPos.getZ() + verticalOffset) - startPos.getZ();
+  // public void simulateShot() {
+  //   double now = Timer.getFPGATimestamp(); // returns seconds
+  //   if (now - lastShotTime < SHOOT_INTERVAL) {
+  //     return; // too soon, skip spawning
+  //   }
+  //   lastShotTime = now;
+  //   Pose2d robotPose = robotPoseSupplier.get();
+  //   double totalYaw = robotPose.getRotation().getRadians() + Math.toRadians(turretSubSystemSupplier.getTurretAngle());
+  //   Translation2d shooterXY = SHOOTER_OFFSET.toTranslation2d()
+  //       .rotateBy(robotPose.getRotation())
+  //       .plus(robotPose.getTranslation());
+  //   Translation3d startPos = new Translation3d(shooterXY.getX(), shooterXY.getY(), SHOOTER_OFFSET.getZ());
+  //   // Translation3d hubPos = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue
+  //   //     ? turretSubSystemSupplier.BlueHubPose
+  //   //     : turretSubSystemSupplier.RedHubPose;
+  //   double launchSpeed = getLaunchSpeed();
+  //   // 4️⃣ Compute vector from shooter to hub
+  //   double dx = hubPos.getX() - startPos.getX();
+  //   double dy = hubPos.getY() - startPos.getY();
+  //   double verticalOffset = 2.0;
+  //   double dz = (hubPos.getZ() + verticalOffset) - startPos.getZ();
 
-    // 5️⃣ Compute pitch angle toward hub
-    double launchAngle = Math.atan2(dz, Math.hypot(dx, dy));
-    double horizontalSpeed = launchSpeed * Math.cos(launchAngle);
-    double vx = horizontalSpeed * Math.cos(totalYaw);
-    double vy = horizontalSpeed * Math.sin(totalYaw);
-    double vz = launchSpeed * Math.sin(launchAngle);
+  //   // 5️⃣ Compute pitch angle toward hub
+  //   double launchAngle = Math.atan2(dz, Math.hypot(dx, dy));
+  //   double horizontalSpeed = launchSpeed * Math.cos(launchAngle);
+  //   double vx = horizontalSpeed * Math.cos(totalYaw);
+  //   double vy = horizontalSpeed * Math.sin(totalYaw);
+  //   double vz = launchSpeed * Math.sin(launchAngle);
 
-    // Add new ball to the list
-    activeBalls.add(new SimulatedBall(startPos, vx, vy, vz));
-  }
+  //   // Add new ball to the list
+  //   activeBalls.add(new SimulatedBall(startPos, vx, vy, vz));
+  // }
 
   // #region Limelight Functions
   public boolean hasTarget() {
