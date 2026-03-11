@@ -77,7 +77,7 @@ public class TurretSubsystem extends SubsystemBase {
 
     TalonFXConfiguration cfg = new TalonFXConfiguration();
 
-    cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    cfg.MotorOutput.NeutralMode = NeutralModeValue.Coast;
 
     cfg.Slot0.kP = TurretConstants.kP;
     cfg.Slot0.kI = TurretConstants.kI;
@@ -333,6 +333,20 @@ public class TurretSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
+    Logger.recordOutput(
+        "Turret/AngleDeg",
+        getTurretAngle());
+
+    Logger.recordOutput(
+        "Turret/AbsoluteAngle",
+        getAbsoluteTurretAngle());
+
+    Logger.recordOutput(
+        "Turret/Mode",
+        mode.toString());
+    Logger.recordOutput(
+        "Turret/TargetHub",
+        getTargetHub());
 
     if (DriverStation.isDisabled()) {
       turretMotor.stopMotor();
@@ -375,19 +389,5 @@ public class TurretSubsystem extends SubsystemBase {
         break;
     }
 
-    Logger.recordOutput(
-        "Turret/AngleDeg",
-        getTurretAngle());
-
-    Logger.recordOutput(
-        "Turret/AbsoluteAngle",
-        getAbsoluteTurretAngle());
-
-    Logger.recordOutput(
-        "Turret/Mode",
-        mode.toString());
-    Logger.recordOutput(
-        "Turret/TargetHub",
-        getTargetHub());
   }
 }

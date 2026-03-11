@@ -70,7 +70,7 @@ public final class Constants {
     public static final double ACCELERATION = 1400;
     public static final double JERK = 5000;
 
-    public static final double kP = 12;
+    public static final double kP = 10;
     public static final double kI = 0;
     public static final double kD = 0.2;
 
@@ -79,8 +79,8 @@ public final class Constants {
     public static final double SHOT_LEAD_TIME = 0.35;
 
     public static final double CAMERA_OFFSET_X = 0;
-    public static final double CAMERA_OFFSET_Y = -0.15;
-    public static final double CAMERA_OFFSET_Z = 0.46;
+    public static final double CAMERA_OFFSET_Y = 0.200;
+    public static final double CAMERA_OFFSET_Z = 0.143083;
 
     public static final Translation3d BLUE_HUB_POSITION = new Translation3d(4.597, 4.035, 1.575);
     public static final Translation3d RED_HUB_POSITION = new Translation3d(11.938, 4.035, 1.575);
