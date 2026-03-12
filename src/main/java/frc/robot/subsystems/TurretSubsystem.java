@@ -1,278 +1,207 @@
 package frc.robot.subsystems;
 
 import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
-import edu.wpi.first.wpilibj.Preferences;
 import edu.wpi.first.wpilibj.DriverStation;
-
+import edu.wpi.first.wpilibj.Preferences;
 import edu.wpi.first.wpilibj2.command.*;
 
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-
 import edu.wpi.first.networktables.*;
-
-import frc.robot.Constants.TurretConstants;
 
 import org.littletonrobotics.junction.Logger;
 
+import frc.robot.Constants.TurretConstants;
+
 import java.util.function.Supplier;
 
+/**
+ * Turret subsystem designed for high performance autonomous aiming.
+ *
+ * Features:
+ * - Absolute encoder boot recovery
+ * - 270° turret protection
+ * - Motion Magic position control
+ * - Hub tracking using robot pose
+ * - Shot leading while moving
+ * - Stabilization while rotating
+ * - Vision micro-correction
+ * - AdvantageScope 3D logging
+ */
 public class TurretSubsystem extends SubsystemBase {
 
-  private final TalonFX turretMotor = new TalonFX(TurretConstants.Motor_Kraken_ID);
+  /* -------------------------------------------------------------------------- */
+  /* Hardware */
+  /* -------------------------------------------------------------------------- */
 
+  private final TalonFX motor = new TalonFX(TurretConstants.Motor_Kraken_ID);
+
+  /** Absolute encoder used to recover turret position after reboot */
   private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(TurretConstants.Encoder_PWM_ID);
+
+  /** Limelight network table */
+  private final NetworkTable limelight = NetworkTableInstance.getDefault().getTable("limelight-shooter");
 
   private final MotionMagicVoltage motionMagic = new MotionMagicVoltage(0);
 
+  /* -------------------------------------------------------------------------- */
+  /* Robot state suppliers */
+  /* -------------------------------------------------------------------------- */
+
+  /** Current robot pose from drivetrain */
+  private Supplier<Pose2d> poseSupplier;
+
+  /** Robot velocity from drivetrain */
+  private Supplier<ChassisSpeeds> speedSupplier;
+
+  /* -------------------------------------------------------------------------- */
+  /* Persistent configuration */
+  /* -------------------------------------------------------------------------- */
+
   private static final String ZERO_KEY = "TurretAbsoluteZero";
 
-  private double absoluteZeroOffset = 0;
+  /** Offset used to align absolute encoder with turret zero */
+  private double absoluteOffset = 0;
 
-  private double targetDeg = 0;
+  /* -------------------------------------------------------------------------- */
+  /* Control state */
+  /* -------------------------------------------------------------------------- */
 
-  private Supplier<Pose2d> robotPoseSupplier;
-  private Supplier<ChassisSpeeds> chassisSpeedSupplier;
+  private double targetAngle = 0;
+  private double lockedAngle = 0;
+  private Translation2d lastVelocity = new Translation2d();
+  private double lastTime = 0;
 
-  private final NetworkTable limelight = NetworkTableInstance.getDefault().getTable("limelight-shooter");
-
-  private final Translation3d turretOffset = new Translation3d(
-      TurretConstants.CAMERA_OFFSET_X,
-      TurretConstants.CAMERA_OFFSET_Y,
-      TurretConstants.CAMERA_OFFSET_Z);
-
-  public enum TurretMode {
+  public enum Mode {
     DISABLED,
     MANUAL,
-    HOLD_ANGLE,
-    FIELD_LOCK,
-    TAG_TRACK,
-    AUTO_AIM,
-    PASS_SHOT,
+    LOCK,
+    TRACK_HUB,
+    PASS,
     SCAN
   }
 
-  private TurretMode mode = TurretMode.DISABLED;
+  private Mode currentMode = Mode.TRACK_HUB;
 
-  private double holdAngle = 0;
-
+  /* Scan test mode variables */
   private double scanAngle = -90;
   private int scanDir = 1;
+
+  /* -------------------------------------------------------------------------- */
+  /* Initialization */
+  /* -------------------------------------------------------------------------- */
 
   public TurretSubsystem() {
 
     configureMotor();
 
-    absoluteZeroOffset = Preferences.getDouble(ZERO_KEY, 0);
+    absoluteOffset = Preferences.getDouble(ZERO_KEY, 0);
 
     zeroToAbsolute();
+    lastTime = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
   }
 
+  /** Configure TalonFX motor and Motion Magic */
   private void configureMotor() {
 
     TalonFXConfiguration cfg = new TalonFXConfiguration();
 
-    cfg.MotorOutput.NeutralMode = NeutralModeValue.Coast;
+    cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
 
     cfg.Slot0.kP = TurretConstants.kP;
     cfg.Slot0.kI = TurretConstants.kI;
     cfg.Slot0.kD = TurretConstants.kD;
 
-    cfg.MotionMagic.MotionMagicCruiseVelocity = degreesToMotorRotations(
-        TurretConstants.CRUISE_VELOCITY);
+    cfg.MotionMagic.MotionMagicCruiseVelocity = degToMotor(TurretConstants.CRUISE_VELOCITY);
 
-    cfg.MotionMagic.MotionMagicAcceleration = degreesToMotorRotations(
-        TurretConstants.ACCELERATION);
+    cfg.MotionMagic.MotionMagicAcceleration = degToMotor(TurretConstants.ACCELERATION);
 
-    cfg.MotionMagic.MotionMagicJerk = degreesToMotorRotations(
-        TurretConstants.JERK);
+    cfg.MotionMagic.MotionMagicJerk = degToMotor(TurretConstants.JERK);
 
-    cfg.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-
-    cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-
-    cfg.SoftwareLimitSwitch.ForwardSoftLimitThreshold = degreesToMotorRotations(
-        TurretConstants.FORWARD_LIMIT);
-
-    cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = degreesToMotorRotations(
-        TurretConstants.REVERSE_LIMIT);
-
-    turretMotor.getConfigurator().apply(cfg);
+    motor.getConfigurator().apply(cfg);
   }
 
+  /* -------------------------------------------------------------------------- */
+  /* Setup */
+  /* -------------------------------------------------------------------------- */
+
+  /** Supply robot pose and speeds from drivetrain */
   public void setSuppliers(
       Supplier<Pose2d> pose,
       Supplier<ChassisSpeeds> speeds) {
-
-    robotPoseSupplier = pose;
-    chassisSpeedSupplier = speeds;
+    poseSupplier = pose;
+    speedSupplier = speeds;
   }
 
-  public void setMode(TurretMode newMode) {
-    mode = newMode;
-  }
-
-  public Command setModeCommand(TurretMode newMode) {
-    return runOnce(() -> mode = newMode);
-  }
-
+  /** Save the current turret orientation as the absolute zero */
   public void calibrateAbsoluteZero() {
 
-    absoluteZeroOffset = absoluteEncoder.get();
+    absoluteOffset = absoluteEncoder.get();
 
-    Preferences.setDouble(ZERO_KEY, absoluteZeroOffset);
+    Preferences.setDouble(ZERO_KEY, absoluteOffset);
   }
 
-  public void zeroToAbsolute() {
+  /* -------------------------------------------------------------------------- */
+  /* Encoder Handling */
+  /* -------------------------------------------------------------------------- */
 
-    turretMotor.setPosition(
-        degreesToMotorRotations(
-            getAbsoluteTurretAngle()));
-  }
-
-  public double getAbsoluteTurretAngle() {
+  /** Returns turret angle from absolute encoder */
+  public double getAbsoluteAngle() {
 
     double raw = absoluteEncoder.get();
 
-    double adjusted = raw - absoluteZeroOffset;
+    double adjusted = raw - absoluteOffset;
 
     adjusted = (adjusted % 1 + 1) % 1;
 
-    double encoderDeg = adjusted * 360;
-
-    return encoderDeg /
-        TurretConstants.ENCODER_TO_TURRET_RATIO;
+    return adjusted * 360;
   }
 
+  /** Sync motor encoder with absolute encoder on boot */
+  public void zeroToAbsolute() {
+
+    double turretDeg = getAbsoluteAngle();
+
+    motor.setPosition(degToMotor(turretDeg));
+  }
+
+  /** Returns turret angle from motor encoder */
   public double getTurretAngle() {
 
-    return motorRotationsToDegrees(
-        turretMotor.getPosition()
-            .getValueAsDouble());
+    return motorToDeg(
+        motor.getPosition().getValueAsDouble());
   }
 
-  public void setManualPercent(double percent) {
+  /* -------------------------------------------------------------------------- */
+  /* Angle Control */
+  /* -------------------------------------------------------------------------- */
 
-    percent = Math.max(
-        -TurretConstants.MAX_MANUAL_PERCENT,
-        Math.min(
-            TurretConstants.MAX_MANUAL_PERCENT,
-            percent));
+  /** Clamp turret angle within safe mechanical limits */
+  private double clamp(double deg) {
 
-    turretMotor.set(percent);
+    return Math.max(
+        TurretConstants.REVERSE_LIMIT,
+        Math.min(TurretConstants.FORWARD_LIMIT, deg));
   }
 
-  public void setAngle(double deg) {
+  /** Wrap angle between -180 and 180 */
+  private double wrap(double deg) {
 
-    targetDeg = optimizeRotation(deg);
+    while (deg > 180)
+      deg -= 360;
+    while (deg < -180)
+      deg += 360;
 
-    turretMotor.setControl(
-        motionMagic.withPosition(
-            degreesToMotorRotations(targetDeg)));
+    return deg;
   }
 
-  private double computeHubAngle() {
-
-    Pose2d pose = robotPoseSupplier.get();
-
-    Translation2d robot = pose.getTranslation();
-
-    Translation3d hub3d = getTargetHub();
-
-    Translation2d hub = new Translation2d(hub3d.getX(), hub3d.getY());
-
-    Translation2d diff = hub.minus(robot);
-
-    double fieldAngle = Math.atan2(diff.getY(), diff.getX());
-
-    return Math.toDegrees(fieldAngle)
-        - pose.getRotation().getDegrees();
-  }
-
-  private double computeLeadAngle() {
-
-    Pose2d pose = robotPoseSupplier.get();
-
-    ChassisSpeeds speeds = chassisSpeedSupplier.get();
-
-    Translation2d velocity = new Translation2d(
-        speeds.vxMetersPerSecond,
-        speeds.vyMetersPerSecond);
-
-    Translation2d future = pose.getTranslation()
-        .plus(
-            velocity.times(
-                TurretConstants.SHOT_LEAD_TIME));
-
-    Translation3d hub3d = getTargetHub();
-
-    Translation2d hub = new Translation2d(hub3d.getX(), hub3d.getY());
-
-    Translation2d diff = hub.minus(future);
-
-    double fieldAngle = Math.atan2(diff.getY(), diff.getX());
-
-    return Math.toDegrees(fieldAngle)
-        - pose.getRotation().getDegrees();
-  }
-
-  private void trackAprilTag() {
-
-    double tv = limelight.getEntry("tv").getDouble(0);
-
-    if (tv < 1) {
-      setAngle(computeHubAngle());
-      return;
-    }
-
-    double tx = limelight.getEntry("tx").getDouble(0);
-
-    setAngle(getTurretAngle() - tx);
-  }
-
-  private void scan() {
-
-    scanAngle += scanDir * TurretConstants.SCAN_SPEED;
-
-    if (scanAngle > TurretConstants.FORWARD_LIMIT ||
-        scanAngle < TurretConstants.REVERSE_LIMIT) {
-
-      scanDir *= -1;
-    }
-
-    setAngle(scanAngle);
-  }
-
-  private void updateLimelightPose() {
-
-    double turretDeg = getTurretAngle();
-
-    Rotation3d rot = new Rotation3d(
-        0,
-        0,
-        Math.toRadians(turretDeg));
-
-    Pose3d pose = new Pose3d(turretOffset, rot);
-
-    limelight
-        .getEntry("camerapose_robotspace")
-        .setDoubleArray(
-            new double[] {
-                pose.getX(),
-                pose.getY(),
-                pose.getZ(),
-                pose.getRotation().getX(),
-                pose.getRotation().getY(),
-                pose.getRotation().getZ()
-            });
-  }
-
-  private double optimizeRotation(double desired) {
+  /** Choose shortest valid path to target angle */
+  private double optimize(double desired) {
 
     double current = getTurretAngle();
 
@@ -286,101 +215,216 @@ public class TurretSubsystem extends SubsystemBase {
     if (candidate < TurretConstants.REVERSE_LIMIT)
       candidate += 360;
 
-    return candidate;
+    return clamp(candidate);
   }
 
-  private double wrap(double deg) {
+  /** Command turret to specific angle */
+  public void setAngle(double deg) {
 
-    while (deg > 180)
-      deg -= 360;
+    targetAngle = optimize(deg);
 
-    while (deg < -180)
-      deg += 360;
-
-    return deg;
+    motor.setControl(
+        motionMagic.withPosition(
+            degToMotor(targetAngle)));
   }
 
-  private double degreesToMotorRotations(double deg) {
+  /** Manual percent control */
+  public void setManual(double percent) {
 
-    return (deg / 360.0) *
-        TurretConstants.MOTOR_TO_TURRET_RATIO;
+    percent = Math.max(-0.4, Math.min(0.4, percent));
+
+    motor.set(percent);
   }
 
-  private double motorRotationsToDegrees(double rot) {
+  /* -------------------------------------------------------------------------- */
+  /* Targeting Calculations */
+  /* -------------------------------------------------------------------------- */
 
-    return (rot /
-        TurretConstants.MOTOR_TO_TURRET_RATIO) *
-        360.0;
+  /** Calculate turret angle to hub using robot pose */
+  private double computeHubAngle() {
+
+    Pose2d pose = poseSupplier.get();
+
+    Translation2d robot = pose.getTranslation();
+    Translation2d hub = getHub().toTranslation2d();
+
+    Translation2d diff = hub.minus(robot);
+
+    double fieldAngle = Math.atan2(diff.getY(), diff.getX());
+
+    return Math.toDegrees(fieldAngle)
+        - pose.getRotation().getDegrees();
   }
 
-  private Translation3d getTargetHub() {
+  /** Stabilize turret while robot rotates */
+  private double computeStabilizedHubAngle() {
 
+    double hubAngle = computeHubAngle();
+
+    ChassisSpeeds speeds = speedSupplier.get();
+
+    double omegaDeg = Math.toDegrees(speeds.omegaRadiansPerSecond);
+
+    return hubAngle +
+        omegaDeg * TurretConstants.TURRET_STABILIZATION_TIME;
+  }
+
+  /** Lead shots while translating */
+  private double computeLeadAngle() {
+
+    Pose2d pose = poseSupplier.get();
+    ChassisSpeeds speeds = speedSupplier.get();
+
+    Translation2d velocity = new Translation2d(
+        speeds.vxMetersPerSecond,
+        speeds.vyMetersPerSecond);
+
+    double time = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+    double dt = time - lastTime;
+
+    Translation2d accel = new Translation2d();
+
+    if (dt > 0) {
+      accel = velocity.minus(lastVelocity).div(dt);
+    }
+
+    lastVelocity = velocity;
+    lastTime = time;
+
+    Translation2d future = pose.getTranslation()
+        .plus(velocity.times(TurretConstants.SHOT_LEAD_TIME))
+        .plus(accel.times(0.5 * TurretConstants.SHOT_LEAD_TIME * TurretConstants.SHOT_LEAD_TIME));
+
+    Translation2d hub = getHub().toTranslation2d();
+
+    Translation2d diff = hub.minus(future);
+
+    double fieldAngle = Math.atan2(diff.getY(), diff.getX());
+
+    return Math.toDegrees(fieldAngle)
+        - pose.getRotation().getDegrees();
+  }
+
+  /** Limelight micro-correction */
+  private double getVisionCorrection() {
+
+    double tv = limelight.getEntry("tv").getDouble(0);
+
+    if (tv < 1)
+      return 0;
+
+    double tx = limelight.getEntry("tx").getDouble(0);
+
+    return -tx * TurretConstants.VISION_GAIN;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* Hub Position */
+  /* -------------------------------------------------------------------------- */
+
+  private Translation3d getHub() {
     var alliance = DriverStation.getAlliance();
 
     if (alliance.isPresent()) {
-
       if (alliance.get() == DriverStation.Alliance.Red) {
         return TurretConstants.RED_HUB_POSITION;
-      }
-
-      if (alliance.get() == DriverStation.Alliance.Blue) {
+      } else if (alliance.get() == DriverStation.Alliance.Blue) {
         return TurretConstants.BLUE_HUB_POSITION;
       }
     }
 
+    // Not present yet; safe fallback
     return TurretConstants.BLUE_HUB_POSITION;
   }
 
+  /* -------------------------------------------------------------------------- */
+  /* Motor Conversion */
+  /* -------------------------------------------------------------------------- */
+
+  private double degToMotor(double deg) {
+
+    return (deg / 360.0)
+        * TurretConstants.MOTOR_TO_TURRET_RATIO;
+  }
+
+  private double motorToDeg(double rot) {
+
+    return (rot /
+        TurretConstants.MOTOR_TO_TURRET_RATIO)
+        * 360.0;
+  }
+
+  public void setMode(Mode newMode) {
+    currentMode = newMode;
+  }
+  /* -------------------------------------------------------------------------- */
+  /* Commands */
+  /* -------------------------------------------------------------------------- */
+
+  public Command lockAngle(double angle) {
+
+    return runOnce(() -> {
+
+      lockedAngle = angle;
+      currentMode = Mode.LOCK;
+    });
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* Periodic Loop */
+  /* -------------------------------------------------------------------------- */
+
   @Override
   public void periodic() {
-    Logger.recordOutput(
-        "Turret/AngleDeg",
-        getTurretAngle());
 
-    Logger.recordOutput(
-        "Turret/AbsoluteAngle",
-        getAbsoluteTurretAngle());
+    double turretDeg = getTurretAngle();
 
-    Logger.recordOutput(
-        "Turret/Mode",
-        mode.toString());
-    Logger.recordOutput(
-        "Turret/TargetHub",
-        getTargetHub());
+    /* AdvantageScope logging */
 
-    if (DriverStation.isDisabled()) {
-      turretMotor.stopMotor();
-      return;
-    }
+    Logger.recordOutput("Turret/AngleDeg", turretDeg);
+    Logger.recordOutput("Turret/TargetDeg", targetAngle);
+    Logger.recordOutput("Turret/AbsoluteDeg", getAbsoluteAngle());
+    Logger.recordOutput("Turret/Mode", currentMode.toString());
+    Logger.recordOutput("Turret/RobotVelocity", lastVelocity);
 
-    updateLimelightPose();
+    Pose3d turretPose = new Pose3d(
+        TurretConstants.TURRET_OFFSET,
+        new Rotation3d(0, 0, Math.toRadians(turretDeg)));
 
-    switch (mode) {
+    Logger.recordOutput("Turret/Pose3d", turretPose);
+
+    // if (DriverStation.isDisabled()) {
+
+    // motor.stopMotor();
+    // return;
+    // }
+
+    switch (currentMode) {
 
       case DISABLED:
-        turretMotor.stopMotor();
+        motor.stopMotor();
         break;
 
       case MANUAL:
         break;
 
-      case HOLD_ANGLE:
-        setAngle(holdAngle);
+      case LOCK:
+        setAngle(lockedAngle);
         break;
 
-      case FIELD_LOCK:
-        setAngle(computeHubAngle());
+      case TRACK_HUB:
+
+        double stabilized = computeLeadAngle() +
+            computeStabilizedHubAngle() -
+            computeHubAngle();
+
+        double vision = getVisionCorrection();
+
+        setAngle(stabilized + vision);
+
         break;
 
-      case TAG_TRACK:
-        trackAprilTag();
-        break;
-
-      case AUTO_AIM:
-        setAngle(computeLeadAngle());
-        break;
-
-      case PASS_SHOT:
+      case PASS:
         setAngle(computeHubAngle() + 180);
         break;
 
@@ -388,6 +432,47 @@ public class TurretSubsystem extends SubsystemBase {
         scan();
         break;
     }
+  }
 
+  /* Test scan mode */
+  private void scan() {
+
+    scanAngle += scanDir * 2;
+
+    if (scanAngle > TurretConstants.FORWARD_LIMIT ||
+        scanAngle < TurretConstants.REVERSE_LIMIT) {
+
+      scanDir *= -1;
+    }
+
+    setAngle(scanAngle);
+  }
+
+  @Override
+  public void simulationPeriodic() {
+    var simState = motor.getSimState();
+
+    // Get the voltage Phoenix 6 wants to apply
+    double appliedVolts = simState.getMotorVoltage();
+
+    // ---- Default placeholder values for simulation ----
+    double simMaxRps = 10.0; // max turret speed in rotations/sec
+    // ---------------------------------------------------
+
+    // Convert voltage to a rotation speed
+    double voltsToRps = appliedVolts / 12.0; // assume 12V battery
+    double rps = voltsToRps * simMaxRps;
+
+    // Integrate for 20ms loop
+    double deltaRot = rps * 0.02;
+
+    // Update the simulated TalonFX encoder
+    simState.addRotorPosition(deltaRot);
+    simState.setRotorVelocity(rps);
+  }
+
+  /* get mode */
+  public Mode getCurrentMode() {
+    return currentMode;
   }
 }

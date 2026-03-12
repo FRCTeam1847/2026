@@ -273,13 +273,13 @@ public class ShooterSubsystem extends SubsystemBase {
   //   //     ? turretSubSystemSupplier.BlueHubPose
   //   //     : turretSubSystemSupplier.RedHubPose;
   //   double launchSpeed = getLaunchSpeed();
-  //   // 4️⃣ Compute vector from shooter to hub
+  //   // Compute vector from shooter to hub
   //   double dx = hubPos.getX() - startPos.getX();
   //   double dy = hubPos.getY() - startPos.getY();
   //   double verticalOffset = 2.0;
   //   double dz = (hubPos.getZ() + verticalOffset) - startPos.getZ();
 
-  //   // 5️⃣ Compute pitch angle toward hub
+  //   //  Compute pitch angle toward hub
   //   double launchAngle = Math.atan2(dz, Math.hypot(dx, dy));
   //   double horizontalSpeed = launchSpeed * Math.cos(launchAngle);
   //   double vx = horizontalSpeed * Math.cos(totalYaw);

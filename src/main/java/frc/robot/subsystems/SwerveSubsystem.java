@@ -21,6 +21,7 @@ import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
@@ -149,7 +150,18 @@ public class SwerveSubsystem extends SubsystemBase {
     // swerveDrive.updateOdometry();
     // vision.updatePoseEstimation(swerveDrive);
     // }
-    Logger.recordOutput("Field/Robot", new Pose3d(getPose()));
+    Pose2d pose2d = getPose();
+
+    // Add a Z height (in meters) for AdvantageScope visualization
+    double bumpHeight = 0.04445; // 5 cm, adjust as needed
+    Pose3d pose3d = new Pose3d(
+        pose2d.getTranslation().getX(),
+        pose2d.getTranslation().getY(),
+        bumpHeight, // <-- this raises the robot visually
+        new Rotation3d(0, 0, pose2d.getRotation().getRadians()));
+
+    // Publish the 3D pose to Logger/AdvantageScope
+    Logger.recordOutput("Field/Robot", pose3d);
   }
 
   @Override

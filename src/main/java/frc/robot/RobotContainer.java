@@ -27,7 +27,6 @@ import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
-import frc.robot.subsystems.TurretSubsystem.TurretMode;
 
 import java.io.File;
 import swervelib.SwerveInputStream;
@@ -111,9 +110,11 @@ public class RobotContainer {
     // SmartDashboard.putData("Auto Chooser", autoChooser);
 
     turretSubsystem.setSuppliers(
-        drivebase::getPose, // Pose2d supplier
-        drivebase::getRobotVelocity // ChassisSpeeds supplier
+        () -> drivebase.getPose(), // Pose2d supplier
+        () -> drivebase.getRobotVelocity() // ChassisSpeeds supplier
     );
+    // Set default turret mode to auto-track
+    // turretSubsystem.setMode(TurretSubsystem.Mode.TRACK_HUB);
 
   }
 
@@ -132,15 +133,13 @@ public class RobotContainer {
    */
   private void configureBindings() {
     // #region Drive Controls
-    // Command driveFieldOrientedAnglularVelocity =
-    // drivebase.driveFieldOriented(driveAngularVelocity);
-    // Command driveFieldOrientedAnglularVelocityKeyboard =
-    // drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
-    // if (RobotBase.isSimulation()) {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    // } else {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    // }
+    Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
+    Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    if (RobotBase.isSimulation()) {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    } else {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    }
 
     // #endregion
 
@@ -157,45 +156,34 @@ public class RobotContainer {
     // #endregion
 
     // #region Turret Controls
-    // turretSubsystem.setDefaultCommand(turretSubsystem.run(() ->
-    // turretSubsystem.setPercent(0.0)));
-    // driverController.L2().onTrue(turretSubsystem.trackAprilTagCommand());
-    // Commands.runOnce(() -> {
-    // if (aimAtHubCommand.isScheduled()) {
-    // aimAtHubCommand.cancel(); // stop aiming
-    // } else {
-    // aimAtHubCommand.schedule(); // start aiming
-    // }
-    // }));
+    driverController.L2().onTrue(
+        new InstantCommand(() -> {
+          if (turretSubsystem.getCurrentMode() == TurretSubsystem.Mode.TRACK_HUB) {
+            turretSubsystem.setMode(TurretSubsystem.Mode.MANUAL);
+          } else {
+            turretSubsystem.setMode(TurretSubsystem.Mode.TRACK_HUB);
+          }
+        }));
 
-    driverController.cross().onTrue(turretSubsystem.setModeCommand(TurretMode.AUTO_AIM));
-    driverController.square().onTrue(turretSubsystem.setModeCommand(TurretMode.DISABLED));
-    driverController.circle().onTrue(turretSubsystem.setModeCommand(TurretMode.FIELD_LOCK));
-     driverController.triangle().onTrue(turretSubsystem.setModeCommand(TurretMode.TAG_TRACK));
+    // --- POV left/right manual nudges ---
+    driverController.povLeft().onTrue(
+        new InstantCommand(() -> {
+          turretSubsystem.setAngle(turretSubsystem.getTurretAngle() - 3);
+          turretSubsystem.setMode(TurretSubsystem.Mode.MANUAL);
+        }));
 
-    // driverController.povRight().onTrue(turretSubsystem.setPercentageCommand(0.25));
-    // driverController.povLeft().onTrue(turretSubsystem.setPercentageCommand(-0.25));
+    driverController.povRight().onTrue(
+        new InstantCommand(() -> {
+          turretSubsystem.setAngle(turretSubsystem.getTurretAngle() + 3);
+          turretSubsystem.setMode(TurretSubsystem.Mode.MANUAL);
+        }));
 
-    // Hold A to auto-aim turret (AUTO_AIM mode)
-    // driverController.cross().whileTrue(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.AUTO_AIM)).onFalse(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.HOLD_ANGLE));
+    // --- Scan/Test Mode (L3 + R3 combo) ---
+    driverController.L3().and(driverController.R3()).onTrue(
+        new InstantCommand(() -> {
+          turretSubsystem.setMode(TurretSubsystem.Mode.SCAN);
+        }));
 
-    // // Manual turret overrides for debugging
-    // driverController.L2().whileTrue(
-    // turretSubsystem.run(() -> turretSubsystem.setManualPercent(0.2)));
-    // driverController.R2().whileTrue(
-    // turretSubsystem.run(() -> turretSubsystem.setManualPercent(-0.2)));
-
-    // // Example: field-lock mode (hold hub)
-    // driverController.square().whileTrue(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.FIELD_LOCK)).onFalse(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.HOLD_ANGLE));
-
-    // // Example: scan mode for testing
-    // driverController.circle().whileTrue(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.SCAN)).onFalse(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.HOLD_ANGLE));
     // #endregion
 
     // #region Shooter Controls
