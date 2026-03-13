@@ -63,7 +63,7 @@ public final class Constants {
     public static final double FORWARD_LIMIT = 180;
     public static final double REVERSE_LIMIT = -180;
     public static final double MAX_MANUAL_PERCENT = 0.35;
-    public static final double CRUISE_VELOCITY = 700;
+    public static final double CRUISE_VELOCITY = 1000;
     public static final double ACCELERATION = 1400;
     public static final double JERK = 5000;
     public static final double kP = 10;

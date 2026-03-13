@@ -48,8 +48,8 @@ public class RobotContainer {
       "swerve"));
 
   private final TurretSubsystem turretSubsystem = new TurretSubsystem();
-  // private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem();
-  // private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
+  private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(() -> drivebase.getPose(), turretSubsystem);
+  private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
   // // private final ArmSubsystem armSubsystem = new ArmSubsystem();
   // private final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
 
@@ -192,15 +192,13 @@ public class RobotContainer {
     // shooterSubsystem.calculateLaunchAngle()));
     // driverController.triangle().whileTrue(shooterSubsystem.raiseServo());
     // driverController.square().whileTrue(shooterSubsystem.lowerServo());
-    // driverController.R2().toggleOnTrue(new InstantCommand(() ->
-    // shooterSubsystem.toggleDynamicHood()));
+    driverController.R2().toggleOnTrue(new InstantCommand(() -> shooterSubsystem.toggleDynamicHood()));
 
-    // driverController.L1()
-    // .whileTrue(new ShootCommand(shooterSubsystem, indexerSubsystem)).onFalse(new
-    // InstantCommand(() -> {
-    // shooterSubsystem.stop();
-    // indexerSubsystem.stop();
-    // }));
+    driverController.L1()
+        .whileTrue(new ShootCommand(shooterSubsystem, indexerSubsystem, turretSubsystem)).onFalse(new InstantCommand(() -> {
+          shooterSubsystem.stop();
+          indexerSubsystem.stop();
+        }));
     // driverController.L1().whileTrue(new InstantCommand(() -> {
     // double rpm = shooterSubsystem.calculateFlywheelRPM();
     // shooterSubsystem.setRPM(rpm);

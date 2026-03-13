@@ -475,4 +475,17 @@ public class TurretSubsystem extends SubsystemBase {
   public Mode getCurrentMode() {
     return currentMode;
   }
+
+  /** Returns true if turret is flipping to reach the target */
+  public boolean isFlipping() {
+    double current = getTurretAngle();
+    double diff = wrap(targetAngle - current);
+
+    // Determine the shortest path
+    boolean shortestPathCrosses180 = Math.abs(diff) > Math.abs(diff - Math.signum(diff) * 360);
+
+    double velocityDegPerSec = motor.getVelocity().getValueAsDouble() * 360.0 / TurretConstants.MOTOR_TO_TURRET_RATIO;
+
+    return Math.abs(diff) > 10 && Math.abs(velocityDegPerSec) > 10 || shortestPathCrosses180;
+  }
 }
