@@ -45,14 +45,15 @@ public final class Constants {
 
   public static class IntakeConstants {
     public static final int ROLLER_Kraken_ID = 9;
-    public static final int ARM_Neo_ID = 20;
+    public static final int ARM_Neo_ID = 16;
+    public static final int ARM_2_Neo_ID = 17;
     public static final int ARM_ENCODER_PWM_ID = 1;
   }
 
   public static class IndexerConstants {
     public static final int Neo_1_ID = 15;
-    public static final int Neo_2_ID = 16;
-    public static final int Neo_3_ID = 17;
+    // public static final int Neo_2_ID = 16;
+    // public static final int Neo_3_ID = 17;
   }
 
   public static class TurretConstants {
