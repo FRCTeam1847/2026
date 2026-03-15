@@ -1,124 +1,137 @@
 package frc.robot.subsystems;
 
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants.IntakeConstants;
-import edu.wpi.first.math.controller.ArmFeedforward;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.system.plant.DCMotor;
-import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.wpilibj2.command.*;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
-import edu.wpi.first.wpilibj.RobotBase;
-import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
-import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import frc.robot.Constants.IntakeConstants;
+import com.revrobotics.PersistMode;
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.ResetMode;
+import com.revrobotics.spark.SparkMax;
+import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.SparkLowLevel.MotorType;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.config.SparkMaxConfig;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.ctre.phoenix6.hardware.TalonFX;
 import org.littletonrobotics.junction.Logger;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
 
 public class IntakeSubsystem extends SubsystemBase {
 
-  // ========================
-  // Hardware
-  // ========================
-  private final SparkMax armMotor;
-  private final DutyCycleEncoder intakeAbsoluteEncoder;
+  // Motors
+  private final SparkMax armMotor = new SparkMax(IntakeConstants.ARM_Neo_ID, MotorType.kBrushless);
+  private final SparkMax armMotor2 = new SparkMax(IntakeConstants.ARM_2_Neo_ID, MotorType.kBrushless);
 
-  // Roller (Kraken X60)
-  private final TalonFX rollerMotor;
-  private final DutyCycleOut rollerRequest;
+  private final TalonFX rollerMotor = new TalonFX(IntakeConstants.ROLLER_Kraken_ID);
 
-  // ========================
-  // Constants
-  // ========================
-  private static final double GEAR_RATIO = 160.0;
-  private static final double ARM_LENGTH = 0.4; // meters
-  private static final double ARM_MASS = 3.17515; // kg
-  private static final double MIN_ANGLE = 0.0;
-  private static final double MAX_ANGLE = Math.PI / 2.0;
+  private final DutyCycleOut rollerRequest = new DutyCycleOut(0);
 
-  // Feedforward values
-  private static final double kS = 0.0;
-  private static final double kG = 0.12;
-  private static final double kV = 3.10;
-  private static final double kA = 0.0;
+  // Absolute encoder
+  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(IntakeConstants.ARM_ENCODER_PWM_ID);
+
+  // Spark objects
+  private final RelativeEncoder armEncoder;
+  private final SparkClosedLoopController armPID;
+
+  private static final double GEAR_RATIO = 45.0;
+
+  private double targetAngleDeg = 45;
 
   public IntakeSubsystem() {
-    rollerMotor = new TalonFX(IntakeConstants.ROLLER_Kraken_ID);
-    rollerRequest = new DutyCycleOut(0);
+
+    // Spark configuration
+    SparkMaxConfig config = new SparkMaxConfig();
+
+    config.idleMode(IdleMode.kCoast);
+
+    config.encoder
+        .positionConversionFactor(360.0 / GEAR_RATIO)
+        .velocityConversionFactor((360.0 / GEAR_RATIO) / 60.0);
+
+    config.closedLoop
+        .p(0.04)
+        .i(0)
+        .d(0)
+        .outputRange(-1, 1);
+
+    armMotor.configure(
+        config,
+        ResetMode.kResetSafeParameters,
+        PersistMode.kPersistParameters);
+
+    // Spark configuration
+    SparkMaxConfig config2 = new SparkMaxConfig();
+
+    config2.idleMode(IdleMode.kCoast);
+
+    config2.encoder
+        .positionConversionFactor(360.0 / GEAR_RATIO)
+        .velocityConversionFactor((360.0 / GEAR_RATIO) / 60.0);
+
+    config.closedLoop
+        .p(0.04)
+        .i(0)
+        .d(0)
+        .outputRange(-1, 1);
+    config2.follow(IntakeConstants.ARM_Neo_ID,true);
+
+    armMotor2.configure(
+        config2,
+        ResetMode.kResetSafeParameters,
+        PersistMode.kPersistParameters);
+
+    // Get encoder + PID controller
+    armEncoder = armMotor.getEncoder();
+    armPID = armMotor.getClosedLoopController();
+
+    // Zero arm using absolute encoder
+    double absoluteAngle = absoluteEncoder.get() * 360.0;
+    armEncoder.setPosition(absoluteAngle);
+
+    // Roller motor
     rollerMotor.setNeutralMode(NeutralModeValue.Brake);
-    armMotor = new SparkMax(IntakeConstants.ARM_Neo_ID, MotorType.kBrushless);
-    intakeAbsoluteEncoder = new DutyCycleEncoder(1);
-    pid.setTolerance(Math.toRadians(2));
-    SmartDashboard.putData("Intake Arm", mech);
   }
 
-  // ========================
-  // Control
-  // ========================
+  // Arm control
+  public void setTargetAngle(double degrees) {
+    targetAngleDeg = degrees;
+    armPID.setSetpoint(degrees, ControlType.kPosition);
+  }
 
-  private final PIDController pid = new PIDController(0.01, 0.0, 0);
-  private final ArmFeedforward ff = new ArmFeedforward(kS, kG, kV, kA);
-
-  private double targetAngleRad = Math.toRadians(45);
-
-  // Store commanded voltage manually
-  private double appliedVoltage = 0.0;
-
-  // ========================
-  // Simulation
-  // ========================
-
-  private final SingleJointedArmSim armSim = new SingleJointedArmSim(
-      DCMotor.getNEO(1),
-      GEAR_RATIO,
-      SingleJointedArmSim.estimateMOI(ARM_LENGTH, ARM_MASS),
-      ARM_LENGTH,
-      MIN_ANGLE,
-      MAX_ANGLE,
-      true,
-      Math.toRadians(45));
-
-  private final Mechanism2d mech = new Mechanism2d(3, 3);
-  private final MechanismRoot2d root = mech.getRoot("root", 1.5, 1.5);
-  private final MechanismLigament2d armLigament = root.append(new MechanismLigament2d("arm", ARM_LENGTH, 45));
-
-  // ========================
-  // Angle Getter
-  // ========================
-
-  public double getAngleRadians() {
-    if (RobotBase.isSimulation()) {
-      return armSim.getAngleRads();
-    } else {
-      return intakeAbsoluteEncoder.get() * 2.0 * Math.PI;
-    }
+  public double getAngle() {
+    return armEncoder.getPosition();
   }
 
   public boolean atSetpoint() {
-    return pid.atSetpoint();
+    return Math.abs(getAngle() - targetAngleDeg) < 2;
   }
 
-  public void setTargetDegrees(double degrees) {
-    targetAngleRad = Math.toRadians(degrees);
-  }
-
-  // ---------------- ROLLERS ----------------
-
+  // Rollers
   public void runRollers(double percent) {
-    rollerMotor.setControl(
-        rollerRequest.withOutput(percent));
+    rollerMotor.setControl(rollerRequest.withOutput(percent));
   }
 
   public void stopRollers() {
     rollerMotor.stopMotor();
   }
 
+  public double getAbsoluteAngle() {
+    return absoluteEncoder.get() * 360.0;
+  }
+
+  // Commands
+  public Command moveToAngle(double degrees) {
+    return runOnce(() -> setTargetAngle(degrees));
+  }
+
+  public Command intakeFuel() {
+    return run(() -> runRollers(-0.4));
+  }
+
+  public Command stopIntakeCommand() {
+    return runOnce(this::stopRollers);
+  }
   // ========================
   // Periodic
   // ========================
@@ -126,51 +139,16 @@ public class IntakeSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
 
-    double currentAngle = getAngleRadians();
+    Logger.recordOutput("IntakeArm/Relative Angle Deg", getAngle());
+    Logger.recordOutput("IntakeArm/Absolute Angle Deg", getAbsoluteAngle());
+    Logger.recordOutput("IntakeArm/Target Deg", targetAngleDeg);
 
-    double pidOutput = pid.calculate(currentAngle, targetAngleRad);
-    double ffOutput = ff.calculate(targetAngleRad, 0);
+    Logger.recordOutput(
+        "IntakeArm/Rollers/RPM",
+        rollerMotor.getVelocity().getValueAsDouble() * 60.0);
 
-    appliedVoltage = MathUtil.clamp(pidOutput + ffOutput, -12, 12);
-
-    armMotor.setVoltage(appliedVoltage);
-
-    Logger.recordOutput("IntakeArm/Arm Angle Deg", Math.toDegrees(currentAngle));
-    Logger.recordOutput("IntakeArm/Target Deg", Math.toDegrees(targetAngleRad));
-    Logger.recordOutput("IntakeArm/Applied Voltage", appliedVoltage);
-    Logger.recordOutput("IntakeArm/Rollers/RPM", rollerMotor.getVelocity().getValueAsDouble() * 60.0);
-    Logger.recordOutput("IntakeArm/Rollers/Percentage", rollerRequest.Output);
-  }
-
-  @Override
-  public void simulationPeriodic() {
-
-    // Feed the SIM the stored voltage
-    armSim.setInput(appliedVoltage);
-    armSim.update(0.02);
-
-    armLigament.setAngle(Math.toDegrees(armSim.getAngleRads()));
-  }
-
-  // ========================
-  // Commands
-  // ========================
-
-  public Command moveToAngle(double degrees) {
-    return run(() -> setTargetDegrees(degrees))
-        .until(this::atSetpoint);
-  }
-
-  public Command intakeFuel(){
-    return run(()->runRollers(-0.4));
-  }
-  public Command stopIntakeCommand(){
-    return run(()-> rollerMotor.stopMotor());
-  }
-  public Command stopArm() {
-    return runOnce(() -> {
-      appliedVoltage = 0;
-      armMotor.setVoltage(0);
-    });
+    Logger.recordOutput(
+        "IntakeArm/Rollers/Percent",
+        rollerRequest.Output);
   }
 }
