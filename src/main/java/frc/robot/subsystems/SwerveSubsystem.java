@@ -35,6 +35,8 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
 import frc.robot.Constants;
+import frc.robot.LimelightHelpers;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -88,6 +90,7 @@ public class SwerveSubsystem extends SubsystemBase {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+    // swerveDrive.setGyroOffset(new Rotation3d(0, 0, Math.toRadians(-90)));
     swerveDrive.setHeadingCorrection(false); // Heading correction should only be used while controlling the robot via
                                              // angle.
     swerveDrive.setCosineCompensator(false);// !SwerveDriveTelemetry.isSimulation); // Disables cosine compensation for
@@ -142,27 +145,51 @@ public class SwerveSubsystem extends SubsystemBase {
   // vision = new Vision(swerveDrive::getPose, swerveDrive.field);
   // }
 
-  @Override
-  public void periodic() {
-    // When vision is enabled we must manually update odometry in SwerveDrive
-    // if (visionDriveTest)
-    // {
-    // swerveDrive.updateOdometry();
-    // vision.updatePoseEstimation(swerveDrive);
-    // }
+@Override
+public void periodic()
+{
+    // Update base odometry
+    swerveDrive.updateOdometry();
+
+    // Reject vision if robot spinning too fast
+    double angularVelocity = Math.abs(swerveDrive.getRobotVelocity().omegaRadiansPerSecond);
+
+    // -------- LIMELIGHT FRONT --------
+    var llFront = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-bl");
+
+    if (llFront != null && llFront.tagCount > 0 && angularVelocity < 12.0)
+    {
+        swerveDrive.addVisionMeasurement(
+            llFront.pose,
+            llFront.timestampSeconds
+        );
+    }
+
+    // -------- LIMELIGHT BACK --------
+    var llBack = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-br");
+
+    if (llBack != null && llBack.tagCount > 0 && angularVelocity < 12.0)
+    {
+        swerveDrive.addVisionMeasurement(
+            llBack.pose,
+            llBack.timestampSeconds
+        );
+    }
+
+    // AdvantageScope visualization
     Pose2d pose2d = getPose();
 
-    // Add a Z height (in meters) for AdvantageScope visualization
-    double bumpHeight = 0.04445; // 5 cm, adjust as needed
-    Pose3d pose3d = new Pose3d(
-        pose2d.getTranslation().getX(),
-        pose2d.getTranslation().getY(),
-        bumpHeight, // <-- this raises the robot visually
-        new Rotation3d(0, 0, pose2d.getRotation().getRadians()));
+    double bumpHeight = 0.04445;
 
-    // Publish the 3D pose to Logger/AdvantageScope
+    Pose3d pose3d = new Pose3d(
+        pose2d.getX(),
+        pose2d.getY(),
+        bumpHeight,
+        new Rotation3d(0, 0, pose2d.getRotation().getRadians())
+    );
+
     Logger.recordOutput("Field/Robot", pose3d);
-  }
+}
 
   @Override
   public void simulationPeriodic() {
