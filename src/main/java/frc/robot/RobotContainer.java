@@ -7,6 +7,8 @@ package frc.robot;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
@@ -21,6 +23,10 @@ import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import java.io.File;
+
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
+
 import swervelib.SwerveInputStream;
 
 /**
@@ -40,14 +46,14 @@ public class RobotContainer {
       "swerve"));
 
   // private final TurretSubsystem turretSubsystem = new TurretSubsystem();
-  private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(() -> drivebase.getPose());
-  private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
+  // private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(() -> drivebase.getPose());
+  // private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
   // // private final ArmSubsystem armSubsystem = new ArmSubsystem();
   // private final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
 
   // Establish a Sendable Chooser that will be able to be sent to the
   // SmartDashboard, allowing selection of desired auto
-  // private final SendableChooser<Command> autoChooser;
+   private final SendableChooser<Command> autoChooser;
 
   /**
    * Converts driver input into a field-relative ChassisSpeeds that is controlled
@@ -58,7 +64,7 @@ public class RobotContainer {
       () -> driverController.getLeftX() * -1)
       .withControllerRotationAxis(driverController::getRightX)
       .deadband(OperatorConstants.DEADBAND)
-      .scaleTranslation(0.5)
+      .scaleTranslation(0.9)
       .allianceRelativeControl(true);
 
   SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
@@ -67,7 +73,7 @@ public class RobotContainer {
       .withControllerRotationAxis(() -> driverController.getRawAxis(
           2))
       .deadband(OperatorConstants.DEADBAND)
-      .scaleTranslation(0.5)
+      .scaleTranslation(0.9)
       .allianceRelativeControl(true);
 
   /**
@@ -75,6 +81,7 @@ public class RobotContainer {
    */
   public RobotContainer() {
     // Configure the trigger bindings
+    registerNamedCommands();
     configureBindings();
     DriverStation.silenceJoystickConnectionWarning(true);
 
@@ -82,10 +89,10 @@ public class RobotContainer {
     // sNamedCommands.registerCommand("test", Commands.print("I EXIST"));
 
     // // Have the autoChooser pull in all PathPlanner autos as options
-    // autoChooser = AutoBuilder.buildAutoChooser();
+    autoChooser = AutoBuilder.buildAutoChooser();
 
     // // // Set the default auto (do nothing)
-    // autoChooser.setDefaultOption("Do Nothing", Commands.none());
+     //autoChooser.setDefaultOption("Do Nothing", Commands.none());
 
     // // Add a simple auto option to have the robot drive forward for 1 second then
     // // stop
@@ -95,7 +102,7 @@ public class RobotContainer {
     // drivebase.driveForward().withTimeout(1));
 
     // // Put the autoChooser on the SmartDashboard
-    // SmartDashboard.putData("Auto Chooser", autoChooser);
+    SmartDashboard.putData("Auto Chooser", autoChooser);
 
     // turretSubsystem.setSuppliers(
     // () -> drivebase.getPose(), // Pose2d supplier
@@ -103,6 +110,44 @@ public class RobotContainer {
     // );
     // Set default turret mode to auto-track
     // turretSubsystem.setMode(TurretSubsystem.Mode.TRACK_HUB);
+
+  }
+
+  private void registerNamedCommands() {
+    // Intake Commands
+    // NamedCommands.registerCommand("intakeOut",
+    // intakeSubsystem.moveToAngleCommand(12));
+    // NamedCommands.registerCommand("intakeIn",
+    // intakeSubsystem.moveToAngleCommand(140));
+    //  NamedCommands.registerCommand("intake", intakeSubsystem.intakeFuel());
+    //  NamedCommands.registerCommand("throw", intakeSubsystem.throwFuel());
+    //  NamedCommands.registerCommand("intakeStop",
+    //  intakeSubsystem.stopIntakeCommand());
+
+    // // Indexer Commands
+
+    // NamedCommands.registerCommand("indexerIn", indexerSubsystem.runIndexer(-.9));
+    // NamedCommands.registerCommand("indexerOut", indexerSubsystem.runIndexer(.9));
+    // NamedCommands.registerCommand("indexerStop", indexerSubsystem.stop());
+
+    // Shooter Commands
+
+    // NamedCommands.registerCommand(
+    // "Home",
+    // new InstantCommand(
+    // () -> manipulatorSubsystem.setLevel(Levels.Home),
+    // manipulatorSubsystem));
+    // NamedCommands.registerCommand(
+    // "CoralStation",
+    // new InstantCommand(
+    // () -> manipulatorSubsystem.setLevel(Levels.CoralStation),
+    // manipulatorSubsystem));
+    // NamedCommands.registerCommand(
+    // "L1",
+    // new InstantCommand(() -> startScoreCommand(Levels.L1)));
+    // NamedCommands.registerCommand(
+    // "L2",
+    // new InstantCommand(() -> startScoreCommand(Levels.L2)));
 
   }
 
@@ -121,31 +166,35 @@ public class RobotContainer {
    */
   private void configureBindings() {
     // #region Drive Controls
-    // Command driveFieldOrientedAnglularVelocity =
-    // drivebase.driveFieldOriented(driveAngularVelocity);
-    // Command driveFieldOrientedAnglularVelocityKeyboard =
-    // drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
-    // if (RobotBase.isSimulation()) {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    // } else {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    // }
+    Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
+    Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    if (RobotBase.isSimulation()) {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    } else {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    }
 
     // #endregion
 
-    // // #region Intake Controls
-    // driverController.circle().whileTrue(intakeSubsystem.moveToAngle(90));
-    // // .onFalse(intakeSubsystem.stopArm());
-    // driverController.cross().whileTrue(intakeSubsystem.moveToAngle(0));
-    // driverController.cross().whileTrue(intakeSubsystem.intakeFuel()).whileFalse(intakeSubsystem.stopIntakeCommand());
-    // // #endregion
+    // #region Intake Controls
+    // driverController.circle().onTrue(NamedCommands.getCommand("intakeIn"));
+    // driverController.cross().onTrue(NamedCommands.getCommand("intakeOut"));
+    // driverController.R1().onTrue(NamedCommands.getCommand("intake"))
+    //     .onFalse(NamedCommands.getCommand("intakeStop"));
+    // driverController.R2().onTrue(NamedCommands.getCommand("throw"))
+    //     .onFalse(NamedCommands.getCommand("intakeStop"));
+
+    // #endregion
 
     // #region Indexer Manual Controls
-    driverController.povUp().whileTrue(indexerSubsystem.runIndexer(1));
-    driverController.povDown().whileTrue(indexerSubsystem.runIndexer(-1));
+    // driverController.povUp().onTrue(NamedCommands.getCommand("indexerIn"))
+    //     .onFalse(NamedCommands.getCommand("indexerStop"));
+    // driverController.povDown().onTrue(NamedCommands.getCommand("indexerOut"))
+    //     .onFalse(NamedCommands.getCommand("indexerStop"));
     // #endregion
 
-    // // #region Turret Controls
+    // #region Turret Controls
+
     // driverController.L2().onTrue(
     // new InstantCommand(() -> {
     // if (turretSubsystem.getCurrentMode() == TurretSubsystem.Mode.TRACK_HUB) {
@@ -174,7 +223,7 @@ public class RobotContainer {
     // turretSubsystem.setMode(TurretSubsystem.Mode.SCAN);
     // }));
 
-    // // #endregion
+    // #endregion
 
     // #region Shooter Controls
     // shooterSubsystem
@@ -185,12 +234,11 @@ public class RobotContainer {
     // driverController.R2().toggleOnTrue(new InstantCommand(() ->
     // shooterSubsystem.toggleDynamicHood()));
 
-    driverController.R1()
-        .whileTrue(
-            new InstantCommand(() -> shooterSubsystem.setRPM(3500)))
-        ;
-    // driverController.L1().whileTrue(new InstantCommand(() -> {
-    // double rpm = shooterSubsystem.calculateFlywheelRPM();
+    // driverController.L1()
+    //     .whileTrue(new ShootCommand(shooterSubsystem, indexerSubsystem));
+    // driverController.L2().whileTrue(
+    //     new InstantCommand(() -> shooterSubsystem.setRPM(2500)))
+    //     .onFalse(new InstantCommand(() -> shooterSubsystem.stop()));
     // shooterSubsystem.setRPM(rpm);
     // })).whileFalse(new InstantCommand(() -> shooterSubsystem.stop()));
     // // #endregion
@@ -204,10 +252,10 @@ public class RobotContainer {
   public Command getAutonomousCommand() {
     // Pass in the selected auto from the SmartDashboard as our desired autnomous
     // commmand
-    return new InstantCommand();// autoChooser.getSelected();
+    return autoChooser.getSelected();// new InstantCommand();// autoChooser.getSelected();
   }
 
   public void setMotorBrake(boolean brake) {
-    // drivebase.setMotorBrake(brake);
+    drivebase.setMotorBrake(brake);
   }
 }

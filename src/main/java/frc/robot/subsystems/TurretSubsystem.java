@@ -86,7 +86,7 @@ public class TurretSubsystem extends SubsystemBase {
     SCAN
   }
 
-  private Mode currentMode = Mode.TRACK_HUB;
+  private Mode currentMode = Mode.MANUAL;
 
   /* Scan test mode variables */
   private double scanAngle = -90;

@@ -6,6 +6,10 @@
     {
       "axis": "y",
       "degrees": 180
+    },
+    {
+      "axis": "z",
+      "degrees": -90
     }
   ],
   "cameras": [

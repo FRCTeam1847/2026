@@ -2,6 +2,7 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.IndexerConstants;
 import com.revrobotics.spark.SparkMax;
@@ -12,8 +13,10 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 public class IndexerSubsystem extends SubsystemBase {
 
   private final SparkMax neo = new SparkMax(IndexerConstants.Neo_1_ID, MotorType.kBrushless);
-  // private final SparkMax neo2 = new SparkMax(IndexerConstants.Neo_2_ID, MotorType.kBrushless);
-  // private final SparkMax neo3 = new SparkMax(IndexerConstants.Neo_3_ID, MotorType.kBrushless);
+  // private final SparkMax neo2 = new SparkMax(IndexerConstants.Neo_2_ID,
+  // MotorType.kBrushless);
+  // private final SparkMax neo3 = new SparkMax(IndexerConstants.Neo_3_ID,
+  // MotorType.kBrushless);
   // private final SparkMax neo2 = new SparkMax(10, MotorType.kBrushless);
 
   public IndexerSubsystem() {
@@ -32,25 +35,27 @@ public class IndexerSubsystem extends SubsystemBase {
 
     // SparkMaxConfig neoConfig2 = new SparkMaxConfig();
     // neoConfig2
-    //     .idleMode(IdleMode.kCoast) // set brake/coast
-    //     .inverted(false); // set inversion if needed
+    // .idleMode(IdleMode.kCoast) // set brake/coast
+    // .inverted(false); // set inversion if needed
 
     // apply configuration (reset safe parameters before applying)
     // neo2.configure(
-    //     neoConfig2,
-    //     com.revrobotics.ResetMode.kResetSafeParameters,
-    //     com.revrobotics.PersistMode.kPersistParameters); // --- SparkMax setup (correct API usage) ---
+    // neoConfig2,
+    // com.revrobotics.ResetMode.kResetSafeParameters,
+    // com.revrobotics.PersistMode.kPersistParameters); // --- SparkMax setup
+    // (correct API usage) ---
 
     // SparkMaxConfig neoConfig3 = new SparkMaxConfig();
     // neoConfig3
-    //     .idleMode(IdleMode.kCoast) // set brake/coast
-    //     .inverted(true); // set inversion if needed
+    // .idleMode(IdleMode.kCoast) // set brake/coast
+    // .inverted(true); // set inversion if needed
 
     // // apply configuration (reset safe parameters before applying)
     // neo3.configure(
-    //     neoConfig3,
-    //     com.revrobotics.ResetMode.kResetSafeParameters,
-    //     com.revrobotics.PersistMode.kPersistParameters); // --- SparkMax setup (correct API usage) ---
+    // neoConfig3,
+    // com.revrobotics.ResetMode.kResetSafeParameters,
+    // com.revrobotics.PersistMode.kPersistParameters); // --- SparkMax setup
+    // (correct API usage) ---
 
   }
 
@@ -75,16 +80,18 @@ public class IndexerSubsystem extends SubsystemBase {
       double reverseTime) {
     return Commands.sequence(
         run(() -> setSpeed(speed)).withTimeout(forwardTime),
-        runOnce(() -> stop()).withTimeout(0.05),
+        runOnce(() -> stop()).withTimeout(0.25),
         run(() -> setSpeed(-speed)).withTimeout(reverseTime),
-        runOnce(() -> stop()).withTimeout(0.05))
+        runOnce(() -> stop()).withTimeout(0.25))
         .repeatedly()
         .finallyDo(interrupted -> stop());
   }
 
-  public void stop() {
-    neo.stopMotor();
-    // neo2.stopMotor();
-    // neo3.stopMotor();
+  public Command stop() {
+    return run(() -> {
+      neo.stopMotor();
+      // neo2.stopMotor();
+      // neo3.stopMotor();
+    });
   }
 }

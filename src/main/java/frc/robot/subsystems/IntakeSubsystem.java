@@ -3,6 +3,7 @@ package frc.robot.subsystems;
 import edu.wpi.first.wpilibj2.command.*;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import frc.robot.Constants.IntakeConstants;
+
 import com.revrobotics.PersistMode;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.ResetMode;
@@ -12,102 +13,94 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+
 import com.ctre.phoenix6.hardware.TalonFX;
-import org.littletonrobotics.junction.Logger;
 import com.ctre.phoenix6.controls.DutyCycleOut;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import org.littletonrobotics.junction.Logger;
+
 public class IntakeSubsystem extends SubsystemBase {
 
+  // ========================
   // Motors
+  // ========================
   private final SparkMax armMotor = new SparkMax(IntakeConstants.ARM_Neo_ID, MotorType.kBrushless);
-  private final SparkMax armMotor2 = new SparkMax(IntakeConstants.ARM_2_Neo_ID, MotorType.kBrushless);
-
   private final TalonFX rollerMotor = new TalonFX(IntakeConstants.ROLLER_Kraken_ID);
-
   private final DutyCycleOut rollerRequest = new DutyCycleOut(0);
 
-  // Absolute encoder
-  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(IntakeConstants.ARM_ENCODER_PWM_ID);
-
-  // Spark objects
+  // ========================
+  // Encoders
+  // ========================
+ // private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(IntakeConstants.ARM_ENCODER_PWM_ID);
   private final RelativeEncoder armEncoder;
   private final SparkClosedLoopController armPID;
 
-  private static final double GEAR_RATIO = 45.0;
+  // ========================
+  // Constants
+  // ========================
+  private static final double GEAR_RATIO = 75.0;
+  private static final double MIN_ANGLE = 10.0;
+  private static final double MAX_ANGLE = 150.0;
+  private static final double kP = 0.003; // tune for your arm
 
-  private double targetAngleDeg = 45;
+  private double targetAngleDeg = 0;
 
   public IntakeSubsystem() {
 
-    // Spark configuration
+    // ========================
+    // Spark Configuration
+    // ========================
     SparkMaxConfig config = new SparkMaxConfig();
-
-    config.idleMode(IdleMode.kCoast);
-
+    config.idleMode(IdleMode.kBrake);
     config.encoder
         .positionConversionFactor(360.0 / GEAR_RATIO)
         .velocityConversionFactor((360.0 / GEAR_RATIO) / 60.0);
-
     config.closedLoop
-        .p(0.04)
+        .p(kP)
         .i(0)
         .d(0)
         .outputRange(-1, 1);
+    config.closedLoopRampRate(0.25).inverted(true);
 
-    armMotor.configure(
-        config,
-        ResetMode.kResetSafeParameters,
-        PersistMode.kPersistParameters);
+    armMotor.configure(config, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
 
-    // Spark configuration
-    SparkMaxConfig config2 = new SparkMaxConfig();
-
-    config2.idleMode(IdleMode.kCoast);
-
-    config2.encoder
-        .positionConversionFactor(360.0 / GEAR_RATIO)
-        .velocityConversionFactor((360.0 / GEAR_RATIO) / 60.0);
-
-    config.closedLoop
-        .p(0.04)
-        .i(0)
-        .d(0)
-        .outputRange(-1, 1);
-    config2.follow(IntakeConstants.ARM_Neo_ID,true);
-
-    armMotor2.configure(
-        config2,
-        ResetMode.kResetSafeParameters,
-        PersistMode.kPersistParameters);
-
-    // Get encoder + PID controller
     armEncoder = armMotor.getEncoder();
     armPID = armMotor.getClosedLoopController();
 
     // Zero arm using absolute encoder
-    double absoluteAngle = absoluteEncoder.get() * 360.0;
-    armEncoder.setPosition(absoluteAngle);
+    armEncoder.setPosition(0);
 
-    // Roller motor
+    // Roller motor brake mode
     rollerMotor.setNeutralMode(NeutralModeValue.Brake);
   }
 
-  // Arm control
-  public void setTargetAngle(double degrees) {
-    targetAngleDeg = degrees;
-    armPID.setSetpoint(degrees, ControlType.kPosition);
+  // ========================
+  // Arm Helpers
+  // ========================
+  public double getAngle() {
+    return armEncoder.getPosition(); // preserves original encoder direction
   }
 
-  public double getAngle() {
-    return armEncoder.getPosition();
+  // public double getAbsoluteAngle() {
+  //   return //absoluteEncoder.get() * 360.0;
+  // }
+
+  // ========================
+  // Arm Control
+  // ========================
+  public void setTargetAngle(double degrees) {
+    targetAngleDeg = Math.max(MIN_ANGLE, Math.min(MAX_ANGLE, degrees));
+    armPID.setSetpoint(targetAngleDeg, ControlType.kPosition);
   }
 
   public boolean atSetpoint() {
-    return Math.abs(getAngle() - targetAngleDeg) < 2;
+    return Math.abs(getAngle() - targetAngleDeg) < 2.0;
   }
 
-  // Rollers
+  // ========================
+  // Roller Control
+  // ========================
   public void runRollers(double percent) {
     rollerMotor.setControl(rollerRequest.withOutput(percent));
   }
@@ -116,39 +109,41 @@ public class IntakeSubsystem extends SubsystemBase {
     rollerMotor.stopMotor();
   }
 
-  public double getAbsoluteAngle() {
-    return absoluteEncoder.get() * 360.0;
-  }
-
+  // ========================
   // Commands
-  public Command moveToAngle(double degrees) {
+  // ========================
+  public Command moveToAngleCommand(double degrees) {
     return runOnce(() -> setTargetAngle(degrees));
   }
 
   public Command intakeFuel() {
-    return run(() -> runRollers(-0.4));
+    return run(() -> runRollers(-0.5));
+  }
+
+   public Command throwFuel() {
+    return run(() -> runRollers(0.3));
   }
 
   public Command stopIntakeCommand() {
     return runOnce(this::stopRollers);
   }
+
   // ========================
   // Periodic
   // ========================
-
   @Override
   public void periodic() {
+    double angle = getAngle();
 
-    Logger.recordOutput("IntakeArm/Relative Angle Deg", getAngle());
-    Logger.recordOutput("IntakeArm/Absolute Angle Deg", getAbsoluteAngle());
+    // HARD safety stop
+    if (angle < MIN_ANGLE - 10 || angle > MAX_ANGLE + 10) {
+      armMotor.stopMotor();
+    }
+
+    Logger.recordOutput("IntakeArm/Angle Deg", angle);
     Logger.recordOutput("IntakeArm/Target Deg", targetAngleDeg);
-
-    Logger.recordOutput(
-        "IntakeArm/Rollers/RPM",
-        rollerMotor.getVelocity().getValueAsDouble() * 60.0);
-
-    Logger.recordOutput(
-        "IntakeArm/Rollers/Percent",
-        rollerRequest.Output);
+    // Logger.recordOutput("IntakeArm/Encoder Value", getAbsoluteAngle());
+    Logger.recordOutput("IntakeArm/Rollers RPM", rollerMotor.getVelocity().getValueAsDouble() * 60.0);
+    Logger.recordOutput("IntakeArm/Rollers Percent", rollerRequest.Output);
   }
 }

@@ -5,7 +5,6 @@
 package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.Meter;
-
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.PathPlannerAuto;
 import com.pathplanner.lib.commands.PathfindingCommand;
@@ -36,7 +35,6 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
 import frc.robot.Constants;
 import frc.robot.LimelightHelpers;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -45,7 +43,6 @@ import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 import org.json.simple.parser.ParseException;
 import org.littletonrobotics.junction.Logger;
-
 import swervelib.SwerveController;
 import swervelib.SwerveDrive;
 import swervelib.SwerveDriveTest;
@@ -90,7 +87,7 @@ public class SwerveSubsystem extends SubsystemBase {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-    // swerveDrive.setGyroOffset(new Rotation3d(0, 0, Math.toRadians(-90)));
+    // swerveDrive.setGyroOffset(new Rotation3d(0, 0, Math.toRadians(90)));
     swerveDrive.setHeadingCorrection(false); // Heading correction should only be used while controlling the robot via
                                              // angle.
     swerveDrive.setCosineCompensator(false);// !SwerveDriveTelemetry.isSimulation); // Disables cosine compensation for
@@ -145,51 +142,45 @@ public class SwerveSubsystem extends SubsystemBase {
   // vision = new Vision(swerveDrive::getPose, swerveDrive.field);
   // }
 
-@Override
-public void periodic()
-{
-    // Update base odometry
+  @Override
+  public void periodic() {
+    // Update odometry
     swerveDrive.updateOdometry();
 
-    // Reject vision if robot spinning too fast
     double angularVelocity = Math.abs(swerveDrive.getRobotVelocity().omegaRadiansPerSecond);
 
-    // -------- LIMELIGHT FRONT --------
-    var llFront = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-bl");
+    // -------- LIMELIGHT BACK LEFT --------
+    var llBL = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-bl");
+    if (llBL != null) {
+      Logger.recordOutput("Vision/BackLeft/tagCount", llBL.tagCount);
+      Logger.recordOutput("Vision/BackLeft/Pose", llBL.pose);
 
-    if (llFront != null && llFront.tagCount > 0 && angularVelocity < 12.0)
-    {
-        swerveDrive.addVisionMeasurement(
-            llFront.pose,
-            llFront.timestampSeconds
-        );
+      if (llBL.tagCount > 0 && angularVelocity < 12.0) {
+        swerveDrive.addVisionMeasurement(llBL.pose, llBL.timestampSeconds);
+      }
     }
 
-    // -------- LIMELIGHT BACK --------
-    var llBack = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-br");
+    // -------- LIMELIGHT BACK RIGHT --------
+    var llBR = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight-br");
+    if (llBR != null) {
+      Logger.recordOutput("Vision/BackRight/tagCount", llBR.tagCount);
+      Logger.recordOutput("Vision/BackRight/Pose", llBR.pose);
 
-    if (llBack != null && llBack.tagCount > 0 && angularVelocity < 12.0)
-    {
-        swerveDrive.addVisionMeasurement(
-            llBack.pose,
-            llBack.timestampSeconds
-        );
+      if (llBR.tagCount > 0 && angularVelocity < 12.0) {
+        swerveDrive.addVisionMeasurement(llBR.pose, llBR.timestampSeconds);
+      }
     }
 
-    // AdvantageScope visualization
+    // -------- FUSED ROBOT POSE --------
     Pose2d pose2d = getPose();
-
     double bumpHeight = 0.04445;
-
     Pose3d pose3d = new Pose3d(
         pose2d.getX(),
         pose2d.getY(),
         bumpHeight,
-        new Rotation3d(0, 0, pose2d.getRotation().getRadians())
-    );
-
+        new Rotation3d(0, 0, pose2d.getRotation().getRadians()));
     Logger.recordOutput("Field/Robot", pose3d);
-}
+  }
 
   @Override
   public void simulationPeriodic() {
