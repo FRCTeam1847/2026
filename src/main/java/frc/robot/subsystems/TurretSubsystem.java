@@ -42,7 +42,6 @@ public class TurretSubsystem extends SubsystemBase {
   private final TalonFX motor = new TalonFX(TurretConstants.Motor_Kraken_ID);
 
   /** Absolute encoder used to recover turret position after reboot */
-  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(TurretConstants.Encoder_PWM_ID);
 
   /** Limelight network table */
   private final NetworkTable limelight = NetworkTableInstance.getDefault().getTable("limelight-shooter");
@@ -86,7 +85,7 @@ public class TurretSubsystem extends SubsystemBase {
     SCAN
   }
 
-  private Mode currentMode = Mode.MANUAL;
+  private Mode currentMode = Mode.TRACK_HUB;
 
   /* Scan test mode variables */
   private double scanAngle = -90;
@@ -100,9 +99,8 @@ public class TurretSubsystem extends SubsystemBase {
 
     configureMotor();
 
-    absoluteOffset = Preferences.getDouble(ZERO_KEY, 0);
+    absoluteOffset = 0;
 
-    zeroToAbsolute();
     lastTime = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
   }
 
@@ -111,7 +109,7 @@ public class TurretSubsystem extends SubsystemBase {
 
     TalonFXConfiguration cfg = new TalonFXConfiguration();
 
-    cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    cfg.MotorOutput.NeutralMode = NeutralModeValue.Coast;
 
     cfg.Slot0.kP = TurretConstants.kP;
     cfg.Slot0.kI = TurretConstants.kI;
@@ -138,37 +136,13 @@ public class TurretSubsystem extends SubsystemBase {
     speedSupplier = speeds;
   }
 
-  /** Save the current turret orientation as the absolute zero */
-  public void calibrateAbsoluteZero() {
-
-    absoluteOffset = absoluteEncoder.get();
-
-    Preferences.setDouble(ZERO_KEY, absoluteOffset);
-  }
-
   /* -------------------------------------------------------------------------- */
   /* Encoder Handling */
   /* -------------------------------------------------------------------------- */
 
   /** Returns turret angle from absolute encoder */
-  public double getAbsoluteAngle() {
-
-    double raw = absoluteEncoder.get();
-
-    double adjusted = raw - absoluteOffset;
-
-    adjusted = (adjusted % 1 + 1) % 1;
-
-    return adjusted * 360;
-  }
 
   /** Sync motor encoder with absolute encoder on boot */
-  public void zeroToAbsolute() {
-
-    double turretDeg = getAbsoluteAngle();
-
-    motor.setPosition(degToMotor(turretDeg));
-  }
 
   /** Returns turret angle from motor encoder */
   public double getTurretAngle() {
@@ -221,11 +195,18 @@ public class TurretSubsystem extends SubsystemBase {
   /** Command turret to specific angle */
   public void setAngle(double deg) {
 
+    // double corrected =
+    // deg + TurretConstants.TURRET_FORWARD_OFFSET;
+
     targetAngle = optimize(deg);
 
     motor.setControl(
         motionMagic.withPosition(
             degToMotor(targetAngle)));
+  }
+
+  public Command increaseAngleCommand(Boolean forward) {
+    return runOnce(() -> setAngle(targetAngle += forward ? 3.0 : -3.0));
   }
 
   /** Manual percent control */
@@ -275,9 +256,15 @@ public class TurretSubsystem extends SubsystemBase {
     Pose2d pose = poseSupplier.get();
     ChassisSpeeds speeds = speedSupplier.get();
 
+    Rotation2d robotRot = pose.getRotation();
+
+    ChassisSpeeds fieldSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
+        speeds,
+        robotRot);
+
     Translation2d velocity = new Translation2d(
-        speeds.vxMetersPerSecond,
-        speeds.vyMetersPerSecond);
+        fieldSpeeds.vxMetersPerSecond,
+        fieldSpeeds.vyMetersPerSecond);
 
     double time = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
     double dt = time - lastTime;
@@ -345,12 +332,14 @@ public class TurretSubsystem extends SubsystemBase {
 
     return (deg / 360.0)
         * TurretConstants.MOTOR_TO_TURRET_RATIO;
+    // * TurretConstants.ENCODER_TO_TURRET_RATIO; // added this
   }
 
   private double motorToDeg(double rot) {
 
     return (rot /
         TurretConstants.MOTOR_TO_TURRET_RATIO)
+        // * TurretConstants.ENCODER_TO_TURRET_RATIO)) // added this
         * 360.0;
   }
 
@@ -383,7 +372,6 @@ public class TurretSubsystem extends SubsystemBase {
 
     Logger.recordOutput("Turret/AngleDeg", turretDeg);
     Logger.recordOutput("Turret/TargetDeg", targetAngle);
-    Logger.recordOutput("Turret/AbsoluteDeg", getAbsoluteAngle());
     Logger.recordOutput("Turret/Mode", currentMode.toString());
     Logger.recordOutput("Turret/RobotVelocity", lastVelocity);
 
@@ -414,13 +402,10 @@ public class TurretSubsystem extends SubsystemBase {
 
       case TRACK_HUB:
 
-        double stabilized = computeLeadAngle() +
-            computeStabilizedHubAngle() -
-            computeHubAngle();
+        double target = computeLeadAngle() +
+            getVisionCorrection();
 
-        double vision = getVisionCorrection();
-
-        setAngle(stabilized + vision);
+        setAngle(target);
 
         break;
 

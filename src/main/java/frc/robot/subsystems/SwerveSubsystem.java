@@ -116,7 +116,7 @@ public class SwerveSubsystem extends SubsystemBase {
     if (isBlueAlliance) {
       return new Pose2d(new Translation2d(Meter.of(3), Meter.of(4)), Rotation2d.fromDegrees(0));
     } else {
-      return new Pose2d(new Translation2d(Meter.of(16), Meter.of(4)), Rotation2d.fromDegrees(180));
+      return new Pose2d(new Translation2d(Meter.of(8), Meter.of(4)), Rotation2d.fromDegrees(180));
     }
   }
 

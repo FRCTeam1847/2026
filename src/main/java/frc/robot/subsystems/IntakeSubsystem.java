@@ -32,17 +32,17 @@ public class IntakeSubsystem extends SubsystemBase {
   // ========================
   // Encoders
   // ========================
- // private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(IntakeConstants.ARM_ENCODER_PWM_ID);
+ private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(IntakeConstants.ARM_ENCODER_PWM_ID);
   private final RelativeEncoder armEncoder;
   private final SparkClosedLoopController armPID;
 
   // ========================
   // Constants
   // ========================
-  private static final double GEAR_RATIO = 75.0;
-  private static final double MIN_ANGLE = 10.0;
-  private static final double MAX_ANGLE = 150.0;
-  private static final double kP = 0.003; // tune for your arm
+  private static final double GEAR_RATIO = 58.3;
+  private static final double MIN_ANGLE = 106;
+  private static final double MAX_ANGLE = 250.0;
+  private static final double kP = 0.0085; // tune for your arm
 
   private double targetAngleDeg = 0;
 
@@ -69,7 +69,7 @@ public class IntakeSubsystem extends SubsystemBase {
     armPID = armMotor.getClosedLoopController();
 
     // Zero arm using absolute encoder
-    armEncoder.setPosition(0);
+    armEncoder.setPosition(getAbsoluteAngle());
 
     // Roller motor brake mode
     rollerMotor.setNeutralMode(NeutralModeValue.Brake);
@@ -82,9 +82,9 @@ public class IntakeSubsystem extends SubsystemBase {
     return armEncoder.getPosition(); // preserves original encoder direction
   }
 
-  // public double getAbsoluteAngle() {
-  //   return //absoluteEncoder.get() * 360.0;
-  // }
+  public double getAbsoluteAngle() {
+    return absoluteEncoder.get() * 360.0;
+  }
 
   // ========================
   // Arm Control
@@ -142,7 +142,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     Logger.recordOutput("IntakeArm/Angle Deg", angle);
     Logger.recordOutput("IntakeArm/Target Deg", targetAngleDeg);
-    // Logger.recordOutput("IntakeArm/Encoder Value", getAbsoluteAngle());
+     Logger.recordOutput("IntakeArm/Encoder Value", getAbsoluteAngle());
     Logger.recordOutput("IntakeArm/Rollers RPM", rollerMotor.getVelocity().getValueAsDouble() * 60.0);
     Logger.recordOutput("IntakeArm/Rollers Percent", rollerRequest.Output);
   }

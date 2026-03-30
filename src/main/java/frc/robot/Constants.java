@@ -45,15 +45,16 @@ public final class Constants {
 
   public static class IntakeConstants {
     public static final int ROLLER_Kraken_ID = 9;
-    public static final int ARM_Neo_ID = 16;
+    public static final int ARM_Neo_ID = 11;
     public static final int ARM_2_Neo_ID = 17;
-    public static final int ARM_ENCODER_PWM_ID = 1;
+    public static final int ARM_ENCODER_PWM_ID = 0;
   }
 
   public static class IndexerConstants {
-    public static final int Neo_1_ID = 15;
-    // public static final int Neo_2_ID = 16;
+    public static final int Neo_1_ID = 17;
+    public static final int Neo_2_ID = 15;
     // public static final int Neo_3_ID = 17;
+    public static final double INDEXER_SPEED = 0.85;
   }
 
   public static class TurretConstants {
@@ -61,8 +62,8 @@ public final class Constants {
     public static final int Encoder_PWM_ID = 2;
     public static final double MOTOR_TO_TURRET_RATIO = 48.0;
     public static final double ENCODER_TO_TURRET_RATIO = 10.0;
-    public static final double FORWARD_LIMIT = 180;
-    public static final double REVERSE_LIMIT = -180;
+    public static final double FORWARD_LIMIT = 230;
+    public static final double REVERSE_LIMIT = -65;
     public static final double MAX_MANUAL_PERCENT = 0.35;
     public static final double CRUISE_VELOCITY = 1000;
     public static final double ACCELERATION = 1400;
@@ -71,13 +72,14 @@ public final class Constants {
     public static final double kI = 0;
     public static final double kD = 0.2;
     public static final double SCAN_SPEED = 1.5;
-    public static final double SHOT_LEAD_TIME = 0.35;
+    public static final double SHOT_LEAD_TIME = 1;
     public static final double CAMERA_OFFSET_X = 0;
     public static final double CAMERA_OFFSET_Y = 0.200;
     public static final double CAMERA_OFFSET_Z = 0.143083;
     public static final Translation3d BLUE_HUB_POSITION = new Translation3d(4.597, 4.035, 1.575);
     public static final Translation3d RED_HUB_POSITION = new Translation3d(11.938, 4.035, 1.575);
-    public static final Translation3d TURRET_OFFSET = new Translation3d(0, -0.15, 0.46);
+    public static final Translation3d TURRET_OFFSET = new Translation3d(-.1, .10, 0.4);
+    public static final double TURRET_FORWARD_OFFSET = 90.0; // added this
     public static final double TURRET_STABILIZATION_TIME = 0.06;
     public static final double VISION_GAIN = 0.6;
 
@@ -86,6 +88,24 @@ public final class Constants {
   public static class ShooterConstants {
     public static final int FLYWHEEL_1_Kraken_ID = 11;
     public static final int FLYWHEEL_2_Kraken_ID = 12;
-    public static final int HOOD_PWM_ID = 3;
+    public static final int HOOD_PWM_ID = 0;
   }
+
+    public static final class IntakeArmConstants {
+          //public static final int kfollowMotorID = 14;
+          public static final int kMotorID = 19; 
+
+          // Absolute encoder DIO port
+          public static final int kEncoderDIO = 4;
+
+          public static final double kIntakeSpeed = 0.8;
+
+          //Offset for zeroing (measure on robot)
+          public static final double kEncoderOffset = 0.0;
+
+          // PID (TUNE THESE)
+          public static final double kP = 0.4;
+          public static final double kI = 0.0;
+          public static final double kD = 0;
+}
 }

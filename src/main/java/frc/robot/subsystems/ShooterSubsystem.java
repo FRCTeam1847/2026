@@ -34,7 +34,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
     private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
 
-    private static final double kP = 0.3;
+    private static final double kP = 0.4;
     private static final double kI = 0.0;
     private static final double kD = 0.0;
     private static final double kS = 0.0;
@@ -102,21 +102,23 @@ public class ShooterSubsystem extends SubsystemBase {
         setHoodAngle(MIN_ANGLE);
 
         // Lookup table example values
-        rpmLookup.put(1.0, 3500.0);
-        rpmLookup.put(1.5, 3500.0);
-        rpmLookup.put(2.0, 3500.0);
-        rpmLookup.put(2.5, 3500.0);
-        rpmLookup.put(3.0, 3500.0);
-        rpmLookup.put(3.5, 3500.0);
-        rpmLookup.put(4.0, 3500.0);
+        rpmLookup.put(1.0, 2750.0);
+        rpmLookup.put(1.5, 2750.0);
+        rpmLookup.put(2.0, 2750.0);
+        rpmLookup.put(2.5, 3000.0);
+        rpmLookup.put(3.0, 3450.0);
+        rpmLookup.put(3.5, 3800.0);
+        rpmLookup.put(4.0, 4050.0);
+        rpmLookup.put(5.0, 4500.0);
 
-        hoodLookup.put(1.0, 30.0);
-        hoodLookup.put(1.5, 20.0);
-        hoodLookup.put(2.0, 50.0);
-        hoodLookup.put(2.5, 60.0);
-        hoodLookup.put(3.0, 80.0);
-        hoodLookup.put(3.5, 90.0);
-        hoodLookup.put(4.0, 100.0);
+        hoodLookup.put(1.0, 1.0);
+        hoodLookup.put(1.5, 1.0);
+        hoodLookup.put(2.0, 1.0);
+        hoodLookup.put(2.5, 1.0);
+        hoodLookup.put(3.0, 15.0);
+        hoodLookup.put(3.5, 25.0);
+        hoodLookup.put(4.0, 60.0);
+        hoodLookup.put(5.0, 70.0);
     }
 
     private Translation3d getHubPosition() {

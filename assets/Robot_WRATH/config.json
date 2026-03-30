@@ -9,7 +9,11 @@
     },
     {
       "axis": "z",
-      "degrees": -90
+      "degrees": 180
+    },
+    {
+      "axis":"x",
+      "degrees":-90
     }
   ],
   "cameras": [

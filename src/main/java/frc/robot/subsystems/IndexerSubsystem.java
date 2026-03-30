@@ -13,8 +13,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 public class IndexerSubsystem extends SubsystemBase {
 
   private final SparkMax neo = new SparkMax(IndexerConstants.Neo_1_ID, MotorType.kBrushless);
-  // private final SparkMax neo2 = new SparkMax(IndexerConstants.Neo_2_ID,
-  // MotorType.kBrushless);
+  private final SparkMax neo2 = new SparkMax(IndexerConstants.Neo_2_ID, MotorType.kBrushless);
   // private final SparkMax neo3 = new SparkMax(IndexerConstants.Neo_3_ID,
   // MotorType.kBrushless);
   // private final SparkMax neo2 = new SparkMax(10, MotorType.kBrushless);
@@ -33,16 +32,16 @@ public class IndexerSubsystem extends SubsystemBase {
         com.revrobotics.ResetMode.kResetSafeParameters,
         com.revrobotics.PersistMode.kPersistParameters); // --- SparkMax setup (correct API usage) ---
 
-    // SparkMaxConfig neoConfig2 = new SparkMaxConfig();
-    // neoConfig2
-    // .idleMode(IdleMode.kCoast) // set brake/coast
-    // .inverted(false); // set inversion if needed
+    SparkMaxConfig neoConfig2 = new SparkMaxConfig();
+    neoConfig2
+    .idleMode(IdleMode.kCoast) // set brake/coast
+    .inverted(false); // set inversion if needed
 
     // apply configuration (reset safe parameters before applying)
-    // neo2.configure(
-    // neoConfig2,
-    // com.revrobotics.ResetMode.kResetSafeParameters,
-    // com.revrobotics.PersistMode.kPersistParameters); // --- SparkMax setup
+    neo2.configure(
+    neoConfig2,
+    com.revrobotics.ResetMode.kResetSafeParameters,
+    com.revrobotics.PersistMode.kPersistParameters); // --- SparkMax setup
     // (correct API usage) ---
 
     // SparkMaxConfig neoConfig3 = new SparkMaxConfig();
@@ -64,7 +63,7 @@ public class IndexerSubsystem extends SubsystemBase {
 
     // REV SparkMax
     neo.set(speed);
-    // neo2.set(speed);
+    neo2.set(speed);
     // neo3.set(speed);
     // neo2.set(speed);
   }
@@ -74,24 +73,26 @@ public class IndexerSubsystem extends SubsystemBase {
         .finallyDo(interrupted -> stop());
   }
 
-  public Command oscillateIndexer(
-      double speed,
-      double forwardTime,
-      double reverseTime) {
-    return Commands.sequence(
-        run(() -> setSpeed(speed)).withTimeout(forwardTime),
-        runOnce(() -> stop()).withTimeout(0.25),
-        run(() -> setSpeed(-speed)).withTimeout(reverseTime),
-        runOnce(() -> stop()).withTimeout(0.25))
-        .repeatedly()
-        .finallyDo(interrupted -> stop());
-  }
+  // public Command oscillateIndexer(
+  //     double speed,
+  //     double forwardTime,
+  //     double reverseTime) {
+  //   return Commands.sequence(
+  //       run(() -> setSpeed(speed)).withTimeout(forwardTime),
+  //       runOnce(() -> stop()).withTimeout(0.25),
+  //       run(() -> setSpeed(-speed)).withTimeout(reverseTime),
+  //       runOnce(() -> stop()).withTimeout(0.25))
+  //       .repeatedly()
+  //       .finallyDo(interrupted -> stop());
+  // }
 
   public Command stop() {
     return run(() -> {
       neo.stopMotor();
-      // neo2.stopMotor();
+      neo2.stopMotor();
       // neo3.stopMotor();
     });
   }
 }
+
+//spindexer 17 and 15

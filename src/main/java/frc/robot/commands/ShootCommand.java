@@ -1,6 +1,7 @@
 package frc.robot.commands;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.Constants.IndexerConstants;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 
@@ -8,8 +9,8 @@ public class ShootCommand extends Command {
 
   private final ShooterSubsystem shooter;
   private final IndexerSubsystem indexer;
-  private static final double RPM_TOLERANCE = 200; // RPM
-  private static final double ANGLE_TOLERANCE = 5; // degrees
+  private static final double RPM_TOLERANCE = 100; // RPM
+  private static final double ANGLE_TOLERANCE = 2; // degrees
 
   public ShootCommand(ShooterSubsystem shooter, IndexerSubsystem indexer) {
     this.shooter = shooter;
@@ -33,7 +34,7 @@ public class ShootCommand extends Command {
     boolean hoodGood = Math.abs(shooter.getHoodAngle() - targetHood) <= ANGLE_TOLERANCE;
 
     if (rpmGood && hoodGood) {
-      indexer.setSpeed(-0.8);
+      indexer.setSpeed(IndexerConstants.INDEXER_SPEED);
     } else {
       indexer.setSpeed(0);
     }
