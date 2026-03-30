@@ -252,44 +252,44 @@ public class TurretSubsystem extends SubsystemBase {
 
   /** Lead shots while translating */
   private double computeLeadAngle() {
-
     Pose2d pose = poseSupplier.get();
-    ChassisSpeeds speeds = speedSupplier.get();
+    ChassisSpeeds speeds = speedSupplier.get(); // field-relative from YAGSL
 
-    Rotation2d robotRot = pose.getRotation();
+    double t = TurretConstants.SHOT_LEAD_TIME;
 
-    ChassisSpeeds fieldSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
-        speeds,
-        robotRot);
+    // Robot-center -> turret pivot offset, in robot coordinates
+    Translation2d shooterOffsetRobot = TurretConstants.TURRET_OFFSET.toTranslation2d();
 
-    Translation2d velocity = new Translation2d(
-        fieldSpeeds.vxMetersPerSecond,
-        fieldSpeeds.vyMetersPerSecond);
+    // Rotate offset into field coordinates
+    Translation2d shooterOffsetField = shooterOffsetRobot.rotateBy(pose.getRotation());
 
-    double time = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
-    double dt = time - lastTime;
+    // Current shooter position in field coordinates
+    Translation2d shooterPos = pose.getTranslation().plus(shooterOffsetField);
 
-    Translation2d accel = new Translation2d();
+    // Field-relative chassis translation velocity
+    Translation2d chassisVel = new Translation2d(
+        speeds.vxMetersPerSecond,
+        speeds.vyMetersPerSecond);
 
-    if (dt > 0) {
-      accel = velocity.minus(lastVelocity).div(dt);
-    }
+    // Extra linear velocity at shooter due to robot angular velocity
+    double omega = speeds.omegaRadiansPerSecond;
+    Translation2d rotationalVel = new Translation2d(
+        -omega * shooterOffsetField.getY(),
+        omega * shooterOffsetField.getX());
 
-    lastVelocity = velocity;
-    lastTime = time;
+    // Total shooter velocity in field frame
+    Translation2d shooterVel = chassisVel.plus(rotationalVel);
 
-    Translation2d future = pose.getTranslation()
-        .plus(velocity.times(TurretConstants.SHOT_LEAD_TIME))
-        .plus(accel.times(0.5 * TurretConstants.SHOT_LEAD_TIME * TurretConstants.SHOT_LEAD_TIME));
+    // Predict where shooter will be when the ball reaches target
+    Translation2d predictedShooterPos = shooterPos.plus(shooterVel.times(t));
 
-    Translation2d hub = getHub().toTranslation2d();
+    Translation2d toHub = getHub().toTranslation2d().minus(predictedShooterPos);
 
-    Translation2d diff = hub.minus(future);
+    double fieldAngle = Math.atan2(toHub.getY(), toHub.getX());
 
-    double fieldAngle = Math.atan2(diff.getY(), diff.getX());
-
-    return Math.toDegrees(fieldAngle)
-        - pose.getRotation().getDegrees();
+    return Rotation2d.fromRadians(fieldAngle)
+        .minus(pose.getRotation())
+        .getDegrees();
   }
 
   /** Limelight micro-correction */

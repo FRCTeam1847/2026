@@ -113,7 +113,7 @@ public class RobotContainer {
 
     turretSubsystem.setSuppliers(
         drivebase::getPose, // Pose2d supplier
-        drivebase::getRobotVelocity // ChassisSpeeds supplier
+        drivebase::getFieldVelocity // ChassisSpeeds supplier
     );
 
   }
