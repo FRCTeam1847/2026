@@ -78,7 +78,7 @@ public final class Constants {
     public static final double CAMERA_OFFSET_Z = 0.143083;
     public static final Translation3d BLUE_HUB_POSITION = new Translation3d(4.597, 4.035, 1.575);
     public static final Translation3d RED_HUB_POSITION = new Translation3d(11.938, 4.035, 1.575);
-    public static final Translation3d TURRET_OFFSET = new Translation3d(-.1, .10, 0.4);
+    public static final Translation3d TURRET_OFFSET = new Translation3d(-.2, .10, 0.3);
     public static final double TURRET_FORWARD_OFFSET = 90.0; // added this
     public static final double TURRET_STABILIZATION_TIME = 0.06;
     public static final double VISION_GAIN = 0.6;

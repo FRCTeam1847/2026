@@ -34,7 +34,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
     private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
 
-    private static final double kP = 0.4;
+    private static final double kP = 0.2;
     private static final double kI = 0.0;
     private static final double kD = 0.0;
     private static final double kS = 0.0;
@@ -77,8 +77,13 @@ public class ShooterSubsystem extends SubsystemBase {
 
         config.MotorOutput.NeutralMode = NeutralModeValue.Coast;
 
-        config.CurrentLimits.SupplyCurrentLimitEnable = true;
-        config.CurrentLimits.SupplyCurrentLimit = 30;
+        // config.CurrentLimits.StatorCurrentLimitEnable = true;
+        // config.CurrentLimits.StatorCurrentLimit = 90;
+
+        // config.CurrentLimits.SupplyCurrentLimitEnable = true;
+        // config.CurrentLimits.SupplyCurrentLimit = 60;
+        config.OpenLoopRamps.VoltageOpenLoopRampPeriod = 0.1;
+        config.ClosedLoopRamps.VoltageClosedLoopRampPeriod = 0.1;
 
         config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
 
@@ -92,7 +97,7 @@ public class ShooterSubsystem extends SubsystemBase {
         shooterMotor2.getConfigurator().apply(config);
 
         shooterMotor2.setControl(
-                new Follower(shooterMotor.getDeviceID(), MotorAlignmentValue.Opposed));
+                new Follower(ShooterConstants.FLYWHEEL_1_Kraken_ID, MotorAlignmentValue.Opposed));
 
         servo = new Servo(ShooterConstants.HOOD_PWM_ID);
         servo.setBoundsMicroseconds(2000, 1500, 1500, 1500, 1000);

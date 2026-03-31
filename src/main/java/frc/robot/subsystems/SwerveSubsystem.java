@@ -114,9 +114,9 @@ public class SwerveSubsystem extends SubsystemBase {
   public Pose2d getStartingPose() {
     boolean isBlueAlliance = DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Blue;
     if (isBlueAlliance) {
-      return new Pose2d(new Translation2d(Meter.of(3), Meter.of(4)), Rotation2d.fromDegrees(0));
+      return new Pose2d(new Translation2d(Meter.of(3.5), Meter.of(4)), Rotation2d.fromDegrees(0));
     } else {
-      return new Pose2d(new Translation2d(Meter.of(8), Meter.of(4)), Rotation2d.fromDegrees(180));
+      return new Pose2d(new Translation2d(Meter.of(13), Meter.of(4)), Rotation2d.fromDegrees(180));
     }
   }
 

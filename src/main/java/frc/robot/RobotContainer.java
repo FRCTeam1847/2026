@@ -119,9 +119,13 @@ public class RobotContainer {
   }
 
   private void registerNamedCommands() {
-    NamedCommands.registerCommand("shoot", new ShootCommand(shooterSubsystem, indexerSubsystem));
-    // NamedCommands.registerCommand("intakeUp", intakeSubsystem.moveToAngleCommand(130));
-    // NamedCommands.registerCommand("intakeDown", intakeSubsystem.moveToAngleCommand(235));
+    NamedCommands.registerCommand("shoot",
+        new ShootCommand(shooterSubsystem, indexerSubsystem)
+            .alongWith(intakeSubsystem.oscillateRollersCommand(3, 0.125)));
+    NamedCommands.registerCommand("intakeUp",
+        intakeSubsystem.moveToAngleCommand(100));
+    NamedCommands.registerCommand("intakeDown",
+        intakeSubsystem.moveToAngleCommand(200));
     NamedCommands.registerCommand("intakeFuel", intakeSubsystem.intakeFuel());
     NamedCommands.registerCommand("outputFuel", intakeSubsystem.throwFuel());
     NamedCommands.registerCommand("intakeFuelStop", intakeSubsystem.stopIntakeCommand());
@@ -148,19 +152,21 @@ public class RobotContainer {
    */
   private void configureBindings() {
     // #region Drive Controls
-    // Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
-    // Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    // Command driveFieldOrientedAnglularVelocity =
+    // drivebase.driveFieldOriented(driveAngularVelocity);
+    // Command driveFieldOrientedAnglularVelocityKeyboard =
+    // drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
     // if (RobotBase.isSimulation()) {
-    //   drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
     // } else {
-    //   drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
     // }
 
     // #endregion
 
     // #region Intake Controls
-    // driverController.circle().onTrue(NamedCommands.getCommand("intakeUp"));
-    // driverController.cross().onTrue((NamedCommands.getCommand("intakeDown")));
+    driverController.circle().onTrue(NamedCommands.getCommand("intakeUp"));
+    driverController.cross().onTrue((NamedCommands.getCommand("intakeDown")));
     driverController.R1().whileTrue(NamedCommands.getCommand("intakeFuel"))
         .whileFalse(NamedCommands.getCommand("intakeFuelStop"));
     driverController.R2().whileTrue(NamedCommands.getCommand("outputFuel"))

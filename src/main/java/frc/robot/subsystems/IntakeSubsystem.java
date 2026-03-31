@@ -32,7 +32,7 @@ public class IntakeSubsystem extends SubsystemBase {
   // ========================
   // Encoders
   // ========================
- private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(IntakeConstants.ARM_ENCODER_PWM_ID);
+  private final DutyCycleEncoder absoluteEncoder = new DutyCycleEncoder(IntakeConstants.ARM_ENCODER_PWM_ID);
   private final RelativeEncoder armEncoder;
   private final SparkClosedLoopController armPID;
 
@@ -40,8 +40,8 @@ public class IntakeSubsystem extends SubsystemBase {
   // Constants
   // ========================
   private static final double GEAR_RATIO = 58.3;
-  private static final double MIN_ANGLE = 106;
-  private static final double MAX_ANGLE = 250.0;
+  private static final double MIN_ANGLE = 120;
+  private static final double MAX_ANGLE = 200;
   private static final double kP = 0.0085; // tune for your arm
 
   private double targetAngleDeg = 0;
@@ -52,7 +52,7 @@ public class IntakeSubsystem extends SubsystemBase {
     // Spark Configuration
     // ========================
     SparkMaxConfig config = new SparkMaxConfig();
-    config.idleMode(IdleMode.kBrake);
+    config.idleMode(IdleMode.kCoast);
     config.encoder
         .positionConversionFactor(360.0 / GEAR_RATIO)
         .velocityConversionFactor((360.0 / GEAR_RATIO) / 60.0);
@@ -73,6 +73,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     // Roller motor brake mode
     rollerMotor.setNeutralMode(NeutralModeValue.Brake);
+    absoluteEncoder.setInverted(true);
   }
 
   // ========================
@@ -120,12 +121,24 @@ public class IntakeSubsystem extends SubsystemBase {
     return run(() -> runRollers(-0.5));
   }
 
-   public Command throwFuel() {
+  public Command throwFuel() {
     return run(() -> runRollers(0.3));
   }
 
   public Command stopIntakeCommand() {
     return runOnce(this::stopRollers);
+  }
+
+  public Command oscillateRollersCommand(
+      double forwardTime,
+      double reverseTime) {
+    return Commands.sequence(
+        intakeFuel().withTimeout(forwardTime),
+        runOnce(() -> stopRollers()).withTimeout(0.5),
+        throwFuel().withTimeout(reverseTime),
+        runOnce(() -> stopRollers()).withTimeout(0.5))
+        .repeatedly()
+        .finallyDo(interrupted -> stopRollers());
   }
 
   // ========================
@@ -142,7 +155,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     Logger.recordOutput("IntakeArm/Angle Deg", angle);
     Logger.recordOutput("IntakeArm/Target Deg", targetAngleDeg);
-     Logger.recordOutput("IntakeArm/Encoder Value", getAbsoluteAngle());
+    Logger.recordOutput("IntakeArm/Encoder Value", getAbsoluteAngle());
     Logger.recordOutput("IntakeArm/Rollers RPM", rollerMotor.getVelocity().getValueAsDouble() * 60.0);
     Logger.recordOutput("IntakeArm/Rollers Percent", rollerRequest.Output);
   }
