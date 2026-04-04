@@ -3,8 +3,6 @@
 // the WPILib BSD license file in the root directory of this project.
 
 package frc.robot;
-
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import swervelib.math.Matter;
 import edu.wpi.first.math.util.Units;
@@ -65,14 +63,14 @@ public final class Constants {
     public static final double FORWARD_LIMIT = 230;
     public static final double REVERSE_LIMIT = -65;
     public static final double MAX_MANUAL_PERCENT = 0.35;
-    public static final double CRUISE_VELOCITY = 1000;
-    public static final double ACCELERATION = 1400;
-    public static final double JERK = 5000;
+    public static final double CRUISE_VELOCITY = 1800;
+    public static final double ACCELERATION = 3000;
+    public static final double JERK = 10000;
     public static final double kP = 10;
     public static final double kI = 0;
     public static final double kD = 0.2;
     public static final double SCAN_SPEED = 1.5;
-    public static final double SHOT_LEAD_TIME = 1;
+    public static final double SHOT_LEAD_TIME = 0.3;
     public static final double CAMERA_OFFSET_X = 0;
     public static final double CAMERA_OFFSET_Y = 0.200;
     public static final double CAMERA_OFFSET_Z = 0.143083;

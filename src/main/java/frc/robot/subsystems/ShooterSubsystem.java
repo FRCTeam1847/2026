@@ -111,10 +111,10 @@ public class ShooterSubsystem extends SubsystemBase {
         rpmLookup.put(1.5, 2750.0);
         rpmLookup.put(2.0, 2750.0);
         rpmLookup.put(2.5, 3000.0);
-        rpmLookup.put(3.0, 3450.0);
+        rpmLookup.put(3.0, 3300.0);
         rpmLookup.put(3.5, 3800.0);
-        rpmLookup.put(4.0, 4050.0);
-        rpmLookup.put(5.0, 4500.0);
+        rpmLookup.put(4.0, 4500.0);
+        rpmLookup.put(5.0, 4800.0);
 
         hoodLookup.put(1.0, 1.0);
         hoodLookup.put(1.5, 1.0);
@@ -123,7 +123,7 @@ public class ShooterSubsystem extends SubsystemBase {
         hoodLookup.put(3.0, 15.0);
         hoodLookup.put(3.5, 25.0);
         hoodLookup.put(4.0, 60.0);
-        hoodLookup.put(5.0, 70.0);
+        hoodLookup.put(5.0, 60.0);
     }
 
     private Translation3d getHubPosition() {

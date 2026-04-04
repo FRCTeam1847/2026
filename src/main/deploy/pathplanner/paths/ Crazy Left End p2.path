@@ -3,25 +3,25 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 3.600510083036774,
-        "y": 2.469537366548043
+        "x": 0.48740248226950345,
+        "y": 7.222677304964538
       },
       "prevControl": null,
       "nextControl": {
-        "x": 3.3710477253350115,
-        "y": 2.370305182263162
+        "x": 0.5800362081392371,
+        "y": 7.454881940644989
       },
       "isLocked": false,
-      "linkedName": null
+      "linkedName": "crazy end p2"
     },
     {
       "anchor": {
-        "x": 6.085274822695035,
-        "y": 2.469537366548043
+        "x": 0.48740248226950345,
+        "y": 5.185673758865248
       },
       "prevControl": {
-        "x": 5.841288604620698,
-        "y": 2.524041727747693
+        "x": 0.5949710436405448,
+        "y": 5.411348313488858
       },
       "nextControl": null,
       "isLocked": false,
@@ -42,13 +42,13 @@
   },
   "goalEndState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": -89.84059372611485
   },
   "reversed": false,
   "folder": null,
   "idealStartingState": {
     "velocity": 0,
-    "rotation": 0.0
+    "rotation": -90.0
   },
   "useDefaultConstraints": true
 }

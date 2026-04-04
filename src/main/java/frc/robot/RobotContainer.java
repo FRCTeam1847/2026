@@ -29,6 +29,8 @@ import frc.robot.subsystems.IntakeArmSubsystem;
 import frc.robot.subsystems.ShooterSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
+import frc.robot.subsystems.TurretSubsystem.Mode;
+
 import java.io.File;
 import swervelib.SwerveInputStream;
 
@@ -58,7 +60,7 @@ public class RobotContainer {
 
   // Establish a Sendable Chooser that will be able to be sent to the
   // SmartDashboard, allowing selection of desired auto
-  // private final SendableChooser<Command> autoChooser;
+  private final SendableChooser<Command> autoChooser;
 
   /**
    * Converts driver input into a field-relative ChassisSpeeds that is controlled
@@ -87,17 +89,18 @@ public class RobotContainer {
   public RobotContainer() {
     registerNamedCommands();
     // Configure the trigger bindings
-    configureBindings();
+
+    drivebase.setupPathPlanner();
     DriverStation.silenceJoystickConnectionWarning(true);
 
     // Create the NamedCommands that will be used in PathPlanner
     // NamedCommands.registerCommand("test", Commands.print("I EXIST"));
 
-    NamedCommands.registerCommand(null, getAutonomousCommand());
+    // NamedCommands.registerCommand(null, getAutonomousCommand());
 
     // // Have the autoChooser pull in all PathPlanner autos as options
-    // autoChooser = AutoBuilder.buildAutoChooser();
-
+    autoChooser = AutoBuilder.buildAutoChooser();
+    configureBindings();
     // // // Set the default auto (do nothing)
     // autoChooser.setDefaultOption("Do Nothing", Commands.none());
 
@@ -109,7 +112,7 @@ public class RobotContainer {
     // drivebase.driveForward().withTimeout(1));
 
     // // Put the autoChooser on the SmartDashboard
-    // SmartDashboard.putData("Auto Chooser", autoChooser);
+    SmartDashboard.putData("Auto Chooser", autoChooser);
 
     turretSubsystem.setSuppliers(
         drivebase::getPose, // Pose2d supplier
@@ -121,11 +124,11 @@ public class RobotContainer {
   private void registerNamedCommands() {
     NamedCommands.registerCommand("shoot",
         new ShootCommand(shooterSubsystem, indexerSubsystem)
-            .alongWith(intakeSubsystem.oscillateRollersCommand(3, 0.125)));
+            .alongWith(intakeSubsystem.oscillateRollersCommand(3, 0.15)));
     NamedCommands.registerCommand("intakeUp",
-        intakeSubsystem.moveToAngleCommand(100));
+        intakeSubsystem.moveToAngleCommand(IntakeSubsystem.MIN_ANGLE + 5));
     NamedCommands.registerCommand("intakeDown",
-        intakeSubsystem.moveToAngleCommand(200));
+        intakeSubsystem.moveToAngleCommand(IntakeSubsystem.MAX_ANGLE - 5));
     NamedCommands.registerCommand("intakeFuel", intakeSubsystem.intakeFuel());
     NamedCommands.registerCommand("outputFuel", intakeSubsystem.throwFuel());
     NamedCommands.registerCommand("intakeFuelStop", intakeSubsystem.stopIntakeCommand());
@@ -134,6 +137,8 @@ public class RobotContainer {
     NamedCommands.registerCommand("indexerBackward",
         indexerSubsystem.runIndexer(-Constants.IndexerConstants.INDEXER_SPEED));
     NamedCommands.registerCommand("indexerStop", indexerSubsystem.stop());
+    NamedCommands.registerCommand("setManual", turretSubsystem.setManual());
+    NamedCommands.registerCommand("setTracking", turretSubsystem.setTracking());
 
   }
 
@@ -152,15 +157,13 @@ public class RobotContainer {
    */
   private void configureBindings() {
     // #region Drive Controls
-    // Command driveFieldOrientedAnglularVelocity =
-    // drivebase.driveFieldOriented(driveAngularVelocity);
-    // Command driveFieldOrientedAnglularVelocityKeyboard =
-    // drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
-    // if (RobotBase.isSimulation()) {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    // } else {
-    // drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    // }
+    Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
+    Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    if (RobotBase.isSimulation()) {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    } else {
+      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    }
 
     // #endregion
 
@@ -192,8 +195,15 @@ public class RobotContainer {
     // }
     // });
 
-    driverController.povRight().onTrue(turretSubsystem.increaseAngleCommand(true));
-    driverController.povLeft().onTrue(turretSubsystem.increaseAngleCommand(false));
+    // driverController.povRight().onTrue(turretSubsystem.increaseAngleCommand(true));
+    // driverController.povLeft().onTrue(turretSubsystem.increaseAngleCommand(false));
+    driverController.povRight().whileTrue(
+        Commands.runOnce(() -> turretSubsystem.adjustAimOffset(3.0), turretSubsystem));
+
+    driverController.povLeft().whileTrue(
+        Commands.runOnce(() -> turretSubsystem.adjustAimOffset(-3.0), turretSubsystem));
+    driverController.R3().onTrue(
+        Commands.runOnce(() -> turretSubsystem.resetAimOffset(), turretSubsystem));
 
     // Hold A to auto-aim turret (AUTO_AIM mode)
     // driverController.cross().whileTrue(
@@ -207,9 +217,7 @@ public class RobotContainer {
     // turretSubsystem.run(() -> turretSubsystem.setManualPercent(-0.2)));
 
     // // Example: field-lock mode (hold hub)
-    // driverController.square().whileTrue(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.FIELD_LOCK)).onFalse(
-    // turretSubsystem.setModeCommand(TurretSubsystem.TurretMode.HOLD_ANGLE));
+    driverController.L2().onTrue(turretSubsystem.toggleManualHubTrackingCommand());
 
     // // Example: scan mode for testing
     // driverController.circle().whileTrue(
@@ -249,7 +257,7 @@ public class RobotContainer {
   public Command getAutonomousCommand() {
     // Pass in the selected auto from the SmartDashboard as our desired autnomous
     // commmand
-    return new InstantCommand();// autoChooser.getSelected();
+    return autoChooser.getSelected();
   }
 
   public void setMotorBrake(boolean brake) {

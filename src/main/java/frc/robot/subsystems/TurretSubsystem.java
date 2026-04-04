@@ -47,6 +47,7 @@ public class TurretSubsystem extends SubsystemBase {
   private final NetworkTable limelight = NetworkTableInstance.getDefault().getTable("limelight-shooter");
 
   private final MotionMagicVoltage motionMagic = new MotionMagicVoltage(0);
+  private double aimOffsetDeg = 0.0;
 
   /* -------------------------------------------------------------------------- */
   /* Robot state suppliers */
@@ -174,6 +175,18 @@ public class TurretSubsystem extends SubsystemBase {
     return deg;
   }
 
+  public void adjustAimOffset(double deltaDeg) {
+    aimOffsetDeg += deltaDeg;
+  }
+
+  public void resetAimOffset() {
+    aimOffsetDeg = 0.0;
+  }
+
+  public double getAimOffset() {
+    return aimOffsetDeg;
+  }
+
   /** Choose shortest valid path to target angle */
   private double optimize(double desired) {
 
@@ -248,6 +261,29 @@ public class TurretSubsystem extends SubsystemBase {
 
     return hubAngle +
         omegaDeg * TurretConstants.TURRET_STABILIZATION_TIME;
+  }
+
+  public Command toggleManualHubTrackingCommand() {
+    return runOnce(() -> {
+      if (currentMode == Mode.TRACK_HUB) {
+        currentMode = Mode.MANUAL;
+        motor.stopMotor(); // optional, keeps it from carrying old output
+      } else {
+        currentMode = Mode.TRACK_HUB;
+      }
+    });
+  }
+
+  public Command setManual() {
+    return runOnce(() -> {
+      currentMode = Mode.MANUAL;
+    });
+  }
+
+  public Command setTracking() {
+    return runOnce(() -> {
+      currentMode = Mode.TRACK_HUB;
+    });
   }
 
   /** Lead shots while translating */
@@ -374,6 +410,7 @@ public class TurretSubsystem extends SubsystemBase {
     Logger.recordOutput("Turret/TargetDeg", targetAngle);
     Logger.recordOutput("Turret/Mode", currentMode.toString());
     Logger.recordOutput("Turret/RobotVelocity", lastVelocity);
+    Logger.recordOutput("Turret/AimOffsetDeg", aimOffsetDeg);
 
     Pose3d turretPose = new Pose3d(
         TurretConstants.TURRET_OFFSET,
@@ -402,8 +439,9 @@ public class TurretSubsystem extends SubsystemBase {
 
       case TRACK_HUB:
 
-        double target = computeLeadAngle() +
-            getVisionCorrection();
+        double target = computeLeadAngle()
+            + getVisionCorrection()
+            + aimOffsetDeg;
 
         setAngle(target);
 

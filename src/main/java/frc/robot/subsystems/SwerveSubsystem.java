@@ -108,7 +108,7 @@ public class SwerveSubsystem extends SubsystemBase {
       // updates better.
       swerveDrive.stopOdometryThread();
     }
-    setupPathPlanner();
+    // setupPathPlanner();
   }
 
   public Pose2d getStartingPose() {
