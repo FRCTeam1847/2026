@@ -50,7 +50,7 @@ public class RobotContainer {
   private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
       "swerve"));
 
-  private final TurretSubsystem turretSubsystem = new TurretSubsystem();
+//   private final TurretSubsystem turretSubsystem = new TurretSubsystem();
   private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(() -> drivebase.getPose());
   private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
   // // private final ArmSubsystem armSubsystem = new ArmSubsystem();
@@ -66,28 +66,28 @@ public class RobotContainer {
    * Converts driver input into a field-relative ChassisSpeeds that is controlled
    * by angular velocity.
    */
-  SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
-      () -> driverController.getLeftY() * -1,
-      () -> driverController.getLeftX() * -1)
-      .withControllerRotationAxis(driverController::getRightX)
-      .deadband(OperatorConstants.DEADBAND)
-      .scaleTranslation(0.5)
-      .allianceRelativeControl(true);
+//   SwerveInputStream driveAngularVelocity = SwerveInputStream.of(drivebase.getSwerveDrive(),
+//       () -> driverController.getLeftY() * -1,
+//       () -> driverController.getLeftX() * -1)
+//       .withControllerRotationAxis(driverController::getRightX)
+//       .deadband(OperatorConstants.DEADBAND)
+//       .scaleTranslation(0.5)
+//       .allianceRelativeControl(true);
 
-  SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
-      () -> -driverController.getLeftY(),
-      () -> -driverController.getLeftX())
-      .withControllerRotationAxis(() -> driverController.getRawAxis(
-          2))
-      .deadband(OperatorConstants.DEADBAND)
-      .scaleTranslation(0.5)
-      .allianceRelativeControl(true);
+//   SwerveInputStream driveAngularVelocityKeyboard = SwerveInputStream.of(drivebase.getSwerveDrive(),
+//       () -> -driverController.getLeftY(),
+//       () -> -driverController.getLeftX())
+//       .withControllerRotationAxis(() -> driverController.getRawAxis(
+//           2))
+//       .deadband(OperatorConstants.DEADBAND)
+//       .scaleTranslation(0.5)
+//       .allianceRelativeControl(true);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
    */
   public RobotContainer() {
-    registerNamedCommands();
+     registerNamedCommands();
     // Configure the trigger bindings
 
     drivebase.setupPathPlanner();
@@ -114,14 +114,14 @@ public class RobotContainer {
     // // Put the autoChooser on the SmartDashboard
     SmartDashboard.putData("Auto Chooser", autoChooser);
 
-    turretSubsystem.setSuppliers(
-        drivebase::getPose, // Pose2d supplier
-        drivebase::getFieldVelocity // ChassisSpeeds supplier
-    );
+//     turretSubsystem.setSuppliers(
+//         drivebase::getPose, // Pose2d supplier
+//         drivebase::getFieldVelocity // ChassisSpeeds supplier
+//     );
 
   }
 
-  private void registerNamedCommands() {
+   private void registerNamedCommands() {
     NamedCommands.registerCommand("shoot",
         new ShootCommand(shooterSubsystem, indexerSubsystem)
             .alongWith(intakeSubsystem.oscillateRollersCommand(3, 0.15)));
@@ -137,10 +137,10 @@ public class RobotContainer {
     NamedCommands.registerCommand("indexerBackward",
         indexerSubsystem.runIndexer(-Constants.IndexerConstants.INDEXER_SPEED));
     NamedCommands.registerCommand("indexerStop", indexerSubsystem.stop());
-    NamedCommands.registerCommand("setManual", turretSubsystem.setManual());
-    NamedCommands.registerCommand("setTracking", turretSubsystem.setTracking());
+//     NamedCommands.registerCommand("setManual", turretSubsystem.setManual());
+//     NamedCommands.registerCommand("setTracking", turretSubsystem.setTracking());
 
-  }
+   }
 
   /**
    * Use this method to define your trigger->command mappings. Triggers can be
@@ -157,13 +157,13 @@ public class RobotContainer {
    */
   private void configureBindings() {
     // #region Drive Controls
-    Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
-    Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
-    if (RobotBase.isSimulation()) {
-      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
-    } else {
-      drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
-    }
+    // Command driveFieldOrientedAnglularVelocity = drivebase.driveFieldOriented(driveAngularVelocity);
+    // Command driveFieldOrientedAnglularVelocityKeyboard = drivebase.driveFieldOriented(driveAngularVelocityKeyboard);
+    // if (RobotBase.isSimulation()) {
+    //   drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocityKeyboard);
+    // } else {
+    //   drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
+    // }
 
     // #endregion
 
@@ -174,9 +174,9 @@ public class RobotContainer {
         .whileFalse(NamedCommands.getCommand("intakeFuelStop"));
     driverController.R2().whileTrue(NamedCommands.getCommand("outputFuel"))
         .whileFalse(NamedCommands.getCommand("intakeFuelStop"));
-    // #endregion
+    // // #endregion
 
-    // #region Indexer Manual Controls
+    // // #region Indexer Manual Controls
     driverController.povUp().whileTrue(NamedCommands.getCommand("indexerForward"))
         .whileFalse(NamedCommands.getCommand("indexerStop"));
     driverController.povDown().whileTrue(NamedCommands.getCommand("indexerBackward"))
@@ -197,13 +197,13 @@ public class RobotContainer {
 
     // driverController.povRight().onTrue(turretSubsystem.increaseAngleCommand(true));
     // driverController.povLeft().onTrue(turretSubsystem.increaseAngleCommand(false));
-    driverController.povRight().whileTrue(
-        Commands.runOnce(() -> turretSubsystem.adjustAimOffset(3.0), turretSubsystem));
+    // driverController.povRight().whileTrue(
+    //     Commands.runOnce(() -> turretSubsystem.adjustAimOffset(3.0), turretSubsystem));
 
-    driverController.povLeft().whileTrue(
-        Commands.runOnce(() -> turretSubsystem.adjustAimOffset(-3.0), turretSubsystem));
-    driverController.R3().onTrue(
-        Commands.runOnce(() -> turretSubsystem.resetAimOffset(), turretSubsystem));
+    // driverController.povLeft().whileTrue(
+    //     Commands.runOnce(() -> turretSubsystem.adjustAimOffset(-3.0), turretSubsystem));
+    // driverController.R3().onTrue(
+    //     Commands.runOnce(() -> turretSubsystem.resetAimOffset(), turretSubsystem));
 
     // Hold A to auto-aim turret (AUTO_AIM mode)
     // driverController.cross().whileTrue(
@@ -217,7 +217,7 @@ public class RobotContainer {
     // turretSubsystem.run(() -> turretSubsystem.setManualPercent(-0.2)));
 
     // // Example: field-lock mode (hold hub)
-    driverController.L2().onTrue(turretSubsystem.toggleManualHubTrackingCommand());
+    // driverController.L2().onTrue(turretSubsystem.toggleManualHubTrackingCommand());
 
     // // Example: scan mode for testing
     // driverController.circle().whileTrue(
@@ -226,25 +226,25 @@ public class RobotContainer {
     // #endregion
 
     // #region Shooter Controls
-    // shooterSubsystem
-    // .setDefaultCommand(shooterSubsystem.dynamicHoodCommand(() ->
-    // shooterSubsystem.calculateLaunchAngle()));
-    // driverController.triangle().whileTrue(shooterSubsystem.raiseServo());
-    // driverController.square().whileTrue(shooterSubsystem.lowerServo());
-    // driverController.R2().toggleOnTrue(new InstantCommand(() ->
-    // shooterSubsystem.toggleDynamicHood()));
+    shooterSubsystem
+    .setDefaultCommand(shooterSubsystem.dynamicHoodCommand(() ->
+    shooterSubsystem.calculateLaunchAngle()));
+    driverController.triangle().whileTrue(shooterSubsystem.raiseServo());
+    driverController.square().whileTrue(shooterSubsystem.lowerServo());
+    driverController.R2().toggleOnTrue(new InstantCommand(() ->
+    shooterSubsystem.toggleDynamicHood()));
 
     driverController.L1()
         .whileTrue(NamedCommands.getCommand("shoot"))
-    // .onFalse(new InstantCommand(() -> {
-    // shooterSubsystem.stop();
-    // indexerSubsystem.stop();
-    // }))
+    .onFalse(new InstantCommand(() -> {
+    shooterSubsystem.stop();
+    indexerSubsystem.stop();
+    }))
     ;
-    // driverController.L1().whileTrue(new InstantCommand(() -> {
-    // double rpm = shooterSubsystem.calculateFlywheelRPM();
-    // shooterSubsystem.setRPM(rpm);
-    // })).whileFalse(new InstantCommand(() -> shooterSubsystem.stop()));
+    driverController.L1().whileTrue(new InstantCommand(() -> {
+    double rpm = shooterSubsystem.calculateFlywheelRPM();
+    shooterSubsystem.setRPM(rpm);
+    })).whileFalse(new InstantCommand(() -> shooterSubsystem.stop()));
     // // #endregion
 
   }
