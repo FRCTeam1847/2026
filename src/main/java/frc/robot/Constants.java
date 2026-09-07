@@ -3,6 +3,7 @@
 // the WPILib BSD license file in the root directory of this project.
 
 package frc.robot;
+
 import edu.wpi.first.math.geometry.Translation3d;
 import swervelib.math.Matter;
 import edu.wpi.first.math.util.Units;
@@ -46,6 +47,7 @@ public final class Constants {
     public static final int ARM_Neo_ID = 11;
     public static final int ARM_2_Neo_ID = 17;
     public static final int ARM_ENCODER_PWM_ID = 0;
+    public static final Translation3d INTAKE_OFFSET = new Translation3d(0, 0, 0.3);
   }
 
   public static class IndexerConstants {
@@ -66,7 +68,7 @@ public final class Constants {
     public static final double CRUISE_VELOCITY = 1800;
     public static final double ACCELERATION = 3000;
     public static final double JERK = 10000;
-    public static final double kP = 10;
+    public static final double kP = 1;
     public static final double kI = 0;
     public static final double kD = 0.2;
     public static final double SCAN_SPEED = 1.5;
@@ -89,21 +91,21 @@ public final class Constants {
     public static final int HOOD_PWM_ID = 0;
   }
 
-    public static final class IntakeArmConstants {
-          //public static final int kfollowMotorID = 14;
-          public static final int kMotorID = 19; 
+  public static final class IntakeArmConstants {
+    // public static final int kfollowMotorID = 14;
+    public static final int kMotorID = 19;
 
-          // Absolute encoder DIO port
-          public static final int kEncoderDIO = 4;
+    // Absolute encoder DIO port
+    public static final int kEncoderDIO = 4;
 
-          public static final double kIntakeSpeed = 0.8;
+    public static final double kIntakeSpeed = 0.8;
 
-          //Offset for zeroing (measure on robot)
-          public static final double kEncoderOffset = 0.0;
+    // Offset for zeroing (measure on robot)
+    public static final double kEncoderOffset = 0.0;
 
-          // PID (TUNE THESE)
-          public static final double kP = 0.4;
-          public static final double kI = 0.0;
-          public static final double kD = 0;
-}
+    // PID (TUNE THESE)
+    public static final double kP = 0.4;
+    public static final double kI = 0.0;
+    public static final double kD = 0;
+  }
 }

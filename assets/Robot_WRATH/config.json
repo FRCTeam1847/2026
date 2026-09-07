@@ -12,8 +12,8 @@
       "degrees": 180
     },
     {
-      "axis":"x",
-      "degrees":-90
+      "axis": "x",
+      "degrees": -90
     }
   ],
   "cameras": [
@@ -58,6 +58,28 @@
         {
           "axis": "y",
           "degrees": 180
+        }
+      ],
+      "zeroedPosition": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "intake",
+      "zeroedRotations": [
+        {
+          "axis": "z",
+          "degrees": 0
+        },
+        {
+          "axis": "x",
+          "degrees": 0
+        },
+        {
+          "axis": "y",
+          "degrees": 0
         }
       ],
       "zeroedPosition": [
