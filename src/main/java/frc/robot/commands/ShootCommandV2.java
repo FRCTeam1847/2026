@@ -93,7 +93,6 @@ public class ShootCommandV2 extends Command {
 
   @Override
   public void end(boolean interrupted) {
-    // shooter.stopShooter();
     indexer.setSpeed(0);
     fuelShotTimer.stop();
   }
