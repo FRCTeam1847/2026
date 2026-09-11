@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.commands.ShootCommandV2;
 import frc.robot.commands.ShootOnTheMoveCommand;
 import frc.robot.simulation.FieldSimulation;
 import frc.robot.subsystems.IndexerSubsystem;
@@ -25,6 +26,7 @@ import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.V2.ShooterSubsystem;
 import swervelib.SwerveInputStream;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
 import java.io.File;
 
 /**
@@ -50,8 +52,12 @@ public class RobotContainer {
     private final ShootOnTheMoveCommand shootOnTheMoveCommand = new ShootOnTheMoveCommand(shooterSubsystem, drivebase,
             () -> drivebase.getPose(),
             () -> drivebase.getFieldVelocity(),
-            new Pose2d(shooterSubsystem.getHub().getX(), shooterSubsystem.getHub().getY(), new Rotation2d()));
+            new Pose2d(shooterSubsystem.getHub().getX(),
+                    shooterSubsystem.getHub().getY(), new Rotation2d()));
+
     private final IndexerSubsystem indexerSubsystem = new IndexerSubsystem();
+    private final ShootCommandV2 shootCommand = new ShootCommandV2(shooterSubsystem, indexerSubsystem, drivebase);
+
     // // private final ArmSubsystem armSubsystem = new ArmSubsystem();
     private final IntakeSubsystem intakeSubsystem = new IntakeSubsystem();
     // private final IntakeArmSubsystem intakeArmSubsystem = new
@@ -169,7 +175,11 @@ public class RobotContainer {
         // #endregion
 
         driverController.a().whileTrue(
-                shootOnTheMoveCommand);
+                shootOnTheMoveCommand).onFalse(shooterSubsystem.stopShooter());
+        driverController.rightBumper().whileTrue(
+                shootCommand);
+        driverController.y().whileTrue(shooterSubsystem.runShooter(RotationsPerSecond.of(4)))
+                .whileFalse(shooterSubsystem.stopShooter());
 
         // #region Intake Controls
         // driverController.circle().onTrue(NamedCommands.getCommand("intakeUp"));
