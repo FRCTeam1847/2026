@@ -8,26 +8,19 @@ import static edu.wpi.first.units.Units.Inches;
 import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RPM;
-import static edu.wpi.first.units.Units.Radians;
-
 import edu.wpi.first.math.Pair;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import frc.robot.subsystems.SwerveSubsystem;
-import frc.robot.subsystems.V2.FlywheelSubsystem;
-import frc.robot.subsystems.V2.HoodSubsystem;
 import frc.robot.subsystems.V2.ShooterSubsystem;
-import frc.robot.subsystems.V2.TurretSubsystemV2;
-import swervelib.simulation.ironmaple.simulation.SimulatedArena;
-import swervelib.simulation.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
-
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -35,257 +28,233 @@ import java.util.function.Supplier;
  * Largely written by Eeshwar based off their blog at
  * https://blog.eeshwark.com/robotblog/shooting-on-the-fly
  */
-public class ShootOnTheMoveCommand extends Command {
+public class ShootOnTheMoveCommand extends ParallelCommandGroup {
 
-  // Subsystems
-  private final TurretSubsystemV2 turretSubsystem;
-  private final HoodSubsystem hoodSubsystem;
-  private final FlywheelSubsystem flywheelSubsystem;
-  private final SwerveSubsystem swerveSubsystem;
+        private static final Distance SHOOTER_HEIGHT = Meters.of(0.45);
 
-  private static final Translation3d TurretOffset = new Translation3d(-.2, .10, 0.3);
+        private static final Distance HUB_HEIGHT = Meters.of(2.64);
 
-  private static final Distance SHOOTER_HEIGHT = Meters.of(0.45);
+        // Same wheel diameter used by FlywheelSubsystem
+        private static final Distance FLYWHEEL_DIAMETER = Inches.of(4);
 
-  private static final Distance HUB_HEIGHT = Meters.of(2.64);
+        /**
+         * Current robot pose. (Blue-alliance)
+         */
+        private final Supplier<Pose2d> robotPose;
 
-  // Same wheel diameter used by FlywheelSubsystem
-  private static final Distance FLYWHEEL_DIAMETER = Inches.of(4);
+        /**
+         * Current field-oriented chassis speeds.
+         */
+        private final Supplier<ChassisSpeeds> fieldOrientedChassisSpeeds;
 
-  /**
-   * Current robot pose. (Blue-alliance)
-   */
-  private final Supplier<Pose2d> robotPose;
+        /**
+         * Pose to shoot at.
+         */
+        private final Pose2d goalPose;
 
-  /**
-   * Current field-oriented chassis speeds.
-   */
-  private final Supplier<ChassisSpeeds> fieldOrientedChassisSpeeds;
+        /**
+         * Time in seconds between when the robot is told to move
+         * and when the shooter actually shoots.
+         */
+        private final double latency = 0.15;
 
-  /**
-   * Pose to shoot at.
-   */
-  private final Pose2d goalPose;
+        /**
+         * Maps Distance to RPM.
+         */
+        private final InterpolatingDoubleTreeMap shooterTable = new InterpolatingDoubleTreeMap();
 
-  /**
-   * Time in seconds between when the robot is told to move
-   * and when the shooter actually shoots.
-   */
-  private final double latency = 0.15;
+        /**
+         * Current calculated turret setpoint.
+         */
+        private double turretAngleDegrees = 0.0;
 
-  /**
-   * Maps Distance to RPM.
-   */
-  private final InterpolatingDoubleTreeMap shooterTable = new InterpolatingDoubleTreeMap();
+        /**
+         * Current calculated hood setpoint.
+         */
+        private double hoodAngleDegrees = 0.0;
 
-  public ShootOnTheMoveCommand(
-      ShooterSubsystem shooterSubsystem,
-      SwerveSubsystem swerve,
-      Supplier<Pose2d> currentPose,
-      Supplier<ChassisSpeeds> fieldOrientedChassisSpeeds,
-      Pose2d goal) {
+        /**
+         * Current calculated flywheel setpoint.
+         */
+        private double flywheelVelocity = 0.0;
 
-    turretSubsystem = shooterSubsystem.getTurret();
-    hoodSubsystem = shooterSubsystem.getHood();
-    flywheelSubsystem = shooterSubsystem.getFlywheel();
+        public ShootOnTheMoveCommand(
+                        ShooterSubsystem shooterSubsystem,
+                        SwerveSubsystem swerve,
+                        Supplier<Pose2d> currentPose,
+                        Supplier<ChassisSpeeds> fieldOrientedChassisSpeeds,
+                        Pose2d goal) {
 
-    robotPose = currentPose;
-    swerveSubsystem = swerve;
-    this.fieldOrientedChassisSpeeds = fieldOrientedChassisSpeeds;
-    this.goalPose = goal;
+                robotPose = currentPose;
+                this.fieldOrientedChassisSpeeds = fieldOrientedChassisSpeeds;
+                this.goalPose = goal;
 
-    // Test Results
-    for (var entry : List.of(
-        Pair.of(Meters.of(1), RPM.of(1300)),
-        Pair.of(Meters.of(2), RPM.of(1300)),
-        Pair.of(Meters.of(3), RPM.of(1500)),
-        Pair.of(Meters.of(4), RPM.of(1500)),
-        Pair.of(Meters.of(5), RPM.of(1700)))) {
+                // Test Results
+                for (var entry : List.of(
+                                Pair.of(Meters.of(1), RPM.of(800)),
+                                Pair.of(Meters.of(2), RPM.of(1000)),
+                                Pair.of(Meters.of(3), RPM.of(1500)),
+                                Pair.of(Meters.of(4), RPM.of(1500)),
+                                Pair.of(Meters.of(5), RPM.of(1700)))) {
 
-      shooterTable.put(
-          entry.getFirst().in(Meters),
-          entry.getSecond().in(RPM));
-    }
+                        shooterTable.put(
+                                        entry.getFirst().in(Meters),
+                                        entry.getSecond().in(RPM));
+                }
 
-    setName("Shoot on the move");
-  }
+                /*
+                 * Calculate the desired turret, hood, and flywheel setpoints.
+                 *
+                 * The mechanism commands below consume these values through
+                 * suppliers. They are therefore updated every scheduler cycle
+                 * without this command directly calling subsystem setpoint methods.
+                 */
+                Command calculateShot = Commands.run(this::calculateShot);
 
-  @Override
-  public void initialize() {
-  }
+                Command turretCommand = shooterSubsystem.getTurret().setAngle(() -> Degrees.of(turretAngleDegrees));
 
-  @Override
-  public void execute() {
+                Command hoodCommand = shooterSubsystem.getHood().setAngle(() -> Degrees.of(hoodAngleDegrees));
 
-    // -------------------------------------------------------
-    // 1. GET ROBOT VELOCITY
-    // -------------------------------------------------------
+                Command flywheelCommand = shooterSubsystem.getFlywheel()
+                                .setRPM(() -> MetersPerSecond.of(flywheelVelocity));
 
-    var robotSpeed = fieldOrientedChassisSpeeds.get();
+                addCommands(calculateShot,
+                                turretCommand, hoodCommand, flywheelCommand);
 
-    // -------------------------------------------------------
-    // 2. LATENCY COMPENSATION
-    // -------------------------------------------------------
+                setName("Shoot on the move");
+        }
 
-    Translation2d futurePos = robotPose.get().getTranslation().plus(
-        new Translation2d(
-            robotSpeed.vxMetersPerSecond,
-            robotSpeed.vyMetersPerSecond)
-            .times(latency));
+        private void calculateShot() {
 
-    // -------------------------------------------------------
-    // 3. GET TARGET VECTOR
-    // -------------------------------------------------------
+                // -------------------------------------------------------
+                // 1. GET ROBOT VELOCITY
+                // -------------------------------------------------------
 
-    Translation2d goalLocation = goalPose.getTranslation();
+                ChassisSpeeds robotSpeed = fieldOrientedChassisSpeeds.get();
+                Translation2d robotVelocity = new Translation2d(robotSpeed.vxMetersPerSecond,
+                                robotSpeed.vyMetersPerSecond);
 
-    Translation2d targetVec = goalLocation.minus(futurePos);
+                // -------------------------------------------------------
+                // 2. LATENCY COMPENSATION
+                // -------------------------------------------------------
 
-    double dist = targetVec.getNorm();
+                Pose2d currentPose = robotPose.get();
+                Translation2d futurePosition = currentPose.getTranslation().plus(robotVelocity.times(latency));
 
-    // Prevent division by zero
-    if (dist < 0.01) {
-      return;
-    }
+                // -------------------------------------------------------
+                // 3. GET TARGET VECTOR
+                // -------------------------------------------------------
 
-    // -------------------------------------------------------
-    // 4. GET BASE RPM FROM YOUR SHOOTER TABLE
-    // -------------------------------------------------------
+                Translation2d goalLocation = goalPose.getTranslation();
 
-    double idealRPM = shooterTable.get(dist);
+                Translation2d targetVector = goalLocation.minus(futurePosition);
+                double distance = targetVector.getNorm();
 
-    // -------------------------------------------------------
-    // 5. CONVERT TABLE RPM → LINEAR WHEEL VELOCITY
-    //
-    // The table remains RPM.
-    // We only convert it to m/s for the physics calculation.
-    // -------------------------------------------------------
+                if (distance < 0.01) {
+                        return;
+                }
 
-    double wheelCircumference = FLYWHEEL_DIAMETER.in(Meters) * Math.PI;
+                Translation2d targetDirection = targetVector.div(distance);
 
-    double idealExitVelocity = idealRPM * wheelCircumference / 60.0;
+                // -------------------------------------------------------
+                // 4. GET BASE RPM FROM SHOOTER TABLE
+                // -------------------------------------------------------
 
-    // -------------------------------------------------------
-    // 6. VECTOR SUBTRACTION
-    // -------------------------------------------------------
+                double baseRPM = shooterTable.get(distance);
 
-    Translation2d robotVelVec = new Translation2d(
-        robotSpeed.vxMetersPerSecond,
-        robotSpeed.vyMetersPerSecond);
+                // -------------------------------------------------------
+                // 5. RPM -> BALL/EXIT VELOCITY
+                //
+                // This conversion is only necessary because vector
+                // compensation requires a linear velocity.
+                // -------------------------------------------------------
 
-    Translation2d shotVec = targetVec.div(dist)
-        .times(idealExitVelocity)
-        .minus(robotVelVec);
+                double wheelCircumference = FLYWHEEL_DIAMETER.in(Meters) * Math.PI;
+                double baseExitVelocity = baseRPM * wheelCircumference / 60.0;
 
-    // -------------------------------------------------------
-    // 7. CALCULATE TURRET ANGLE
-    // -------------------------------------------------------
+                // -------------------------------------------------------
+                // 6. SHOOT-ON-THE-MOVE VELOCITY COMPENSATION
+                //
+                // Ball field velocity must point toward the target.
+                //
+                // Ball field velocity = robot velocity + ball velocity
+                // relative to robot.
+                //
+                // Therefore:
+                //
+                // ball velocity relative to robot =
+                // desired field velocity - robot velocity
+                // -------------------------------------------------------
 
-    // shotVec is FIELD-relative.
-    // Convert it to an angle relative to the robot.
+                Translation2d desiredFieldVelocity = targetDirection.times(baseExitVelocity);
+                Translation2d compensatedShotVelocity = desiredFieldVelocity.minus(robotVelocity);
 
-    Rotation2d shotDirection = shotVec.getAngle();
+                // -------------------------------------------------------
+                // 7. CALCULATE TURRET ANGLE
+                // -------------------------------------------------------
 
-    Rotation2d robotRotation = robotPose.get().getRotation();
+                Rotation2d shotDirection = compensatedShotVelocity.getAngle();
+                Rotation2d turretRotation = shotDirection.minus(currentPose.getRotation());
 
-    Rotation2d turretRotation = shotDirection.minus(robotRotation);
+                turretAngleDegrees = turretRotation.getDegrees();
 
-    double turretAngle = turretRotation.getDegrees();
+                // -------------------------------------------------------
+                // 8. CALCULATE REQUIRED HORIZONTAL VELOCITY
+                // -------------------------------------------------------
 
-    // -------------------------------------------------------
-    // 8. CALCULATE REQUIRED HORIZONTAL VELOCITY
-    // -------------------------------------------------------
+                double horizontalVelocity = compensatedShotVelocity.getNorm();
 
-    double horizontalVelocity = shotVec.getNorm();
+                // -------------------------------------------------------
+                // 9. CALCULATE HOOD ANGLE
+                // -------------------------------------------------------
 
-    // -------------------------------------------------------
-    // 9. CALCULATE HOOD ANGLE
-    // -------------------------------------------------------
+                double heightDifference = HUB_HEIGHT.in(Meters) - SHOOTER_HEIGHT.in(Meters);
+                double gravity = 9.80665;
 
-    double heightDifference = HUB_HEIGHT.in(Meters) - SHOOTER_HEIGHT.in(Meters);
+                /*
+                 * Calculate the required vertical velocity.
+                 *
+                 * Given:
+                 *
+                 * x = horizontalVelocity * t
+                 * y = verticalVelocity * t - 0.5 * g * t^2
+                 *
+                 * Solving for verticalVelocity gives:
+                 */
 
-    double gravity = 9.80665;
+                double verticalVelocity = (heightDifference
+                                + gravity * distance * distance / (2.0 * horizontalVelocity * horizontalVelocity))
+                                * horizontalVelocity / distance;
 
-    // Calculate the vertical velocity required to reach the hub.
-    double verticalVelocity = (gravity * dist * dist
-        + 2.0 * heightDifference
-            * horizontalVelocity * horizontalVelocity)
-        / (2.0 * dist * horizontalVelocity);
+                // -------------------------------------------------------
+                // 10. CALCULATE HOOD / LAUNCH ANGLE
+                // -------------------------------------------------------
 
-    // Calculate launch angle above horizontal.
-    double newPitchDegrees = Math.toDegrees(
-        Math.atan2(
-            verticalVelocity,
-            horizontalVelocity));
+                hoodAngleDegrees = Math.toDegrees(Math.atan2(verticalVelocity, horizontalVelocity));
 
-    // -------------------------------------------------------
-    // 10. CONVERT REQUIRED EXIT VELOCITY → RPM
-    // -------------------------------------------------------
+                // -------------------------------------------------------
+                // 11. CALCULATE TOTAL REQUIRED EXIT VELOCITY
+                //
+                // The flywheel needs to produce the TOTAL launch speed,
+                // not just the horizontal component.
+                // -------------------------------------------------------
 
-    double newRPM = horizontalVelocity
-        / wheelCircumference
-        * 60.0;
+                double requiredExitVelocity = Math.hypot(horizontalVelocity, verticalVelocity);
 
-    // -------------------------------------------------------
-    // 11. SET OUTPUTS
-    // -------------------------------------------------------
+                // -------------------------------------------------------
+                // 13. UPDATE FLYWHEEL SETPOINT
+                // -------------------------------------------------------
+                flywheelVelocity = requiredExitVelocity;
 
-    DriverStation.reportWarning(
-        String.format(
-            "Distance: %.2f m | Table RPM: %.0f | SOTM RPM: %.0f | Hood: %.2f° | Turret: %.2f°",
-            dist,
-            idealRPM,
-            newRPM,
-            newPitchDegrees,
-            turretAngle),
-        false);
-
-    turretSubsystem.setAngleDirect(
-        Degrees.of(turretAngle));
-
-    hoodSubsystem.setAngleDirect(
-        Radians.of(newPitchDegrees));
-
-    flywheelSubsystem.setRPMDirect(
-        MetersPerSecond.of(
-            newRPM * wheelCircumference / 60.0));
-
-    // -------------------------------------------------------
-    // 12. SIMULATION
-    // -------------------------------------------------------
-
-    Rotation2d shooterRotation = robotPose.get()
-        .getRotation()
-        .plus(Rotation2d.fromDegrees(turretAngle));
-
-    Translation2d shooterOffset = TurretOffset.toTranslation2d()
-        .rotateBy(shooterRotation);
-
-    RebuiltFuelOnFly fuelOnFly = new RebuiltFuelOnFly(
-        swerveSubsystem.getPose()
-            .getTranslation()
-            .plus(shooterOffset),
-        shooterOffset,
-        swerveSubsystem.getRobotVelocity(),
-        shooterRotation,
-        SHOOTER_HEIGHT,
-        MetersPerSecond.of(
-            newRPM * wheelCircumference / 60.0),
-        hoodSubsystem.getAngle());
-
-    fuelOnFly
-        .disableBecomesGamePieceOnFieldAfterTouchGround();
-
-    SimulatedArena.getInstance()
-        .addGamePieceProjectile(fuelOnFly);
-  }
-
-  @Override
-  public boolean isFinished() {
-    return false;
-  }
-
-  @Override
-  public void end(boolean interrupted) {
-  }
+                DriverStation.reportWarning(
+                                String.format(
+                                                "Distance: %.2f m | "
+                                                                + "requiredExitVelocity: %.0f | Hood: %.2f° | "
+                                                                + "Turret: %.2f°",
+                                                distance,
+                                                requiredExitVelocity,
+                                                hoodAngleDegrees,
+                                                turretAngleDegrees),
+                                false);
+        }
 }
