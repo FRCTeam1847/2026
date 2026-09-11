@@ -106,10 +106,10 @@ public class FlywheelSubsystem extends SubsystemBase {
       // kA = 0.014557 V/(rot/s^2) -- volts per unit of angular acceleration.
       // Non-zero because the rotational inertia of the disk requires extra voltage
       // during speed changes. A flywheel without this term undershoots during ramps.
-      .withFeedforward(new SimpleMotorFeedforward(0.0102, 0.0102, 0))
+      .withFeedforward(new SimpleMotorFeedforward(0.0102, 0.1145, 0))
       // Sim feedforward matches the real one so simulation velocity traces mirror
       // real robot.
-      .withSimFeedforward(new SimpleMotorFeedforward(0.0102, 0.0102, 0))
+      .withSimFeedforward(new SimpleMotorFeedforward(0.0102, 0.1145, 0))
       // Rotating assembly:
       //
       // 2x AndyMark 4" Stealth Wheels, 40A:
