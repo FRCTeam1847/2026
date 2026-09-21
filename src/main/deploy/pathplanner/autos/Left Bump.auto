@@ -7,7 +7,7 @@
         {
           "type": "path",
           "data": {
-            "pathName": "Right Basic"
+            "pathName": "Left Bump Back"
           }
         },
         {
@@ -17,27 +17,15 @@
           }
         },
         {
-          "type": "named",
-          "data": {
-            "name": "setTracking"
-          }
-        },
-        {
-          "type": "named",
-          "data": {
-            "name": "shoot"
-          }
-        },
-        {
           "type": "wait",
           "data": {
-            "waitTime": 15.0
+            "waitTime": 0.25
           }
         },
         {
           "type": "named",
           "data": {
-            "name": "setManual"
+            "name": "shootOnTheMove"
           }
         }
       ]

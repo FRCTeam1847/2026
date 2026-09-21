@@ -42,9 +42,16 @@ public class IndexerSubsystem extends SubsystemBase {
 
   }
 
-  public Command runIndexer(double speed) {
+  private Command runIndexer(double speed) {
     return run(() -> setSpeed(speed))
         .finallyDo(interrupted -> stop());
+  }
+
+  public Command IndexForward() {
+    return runIndexer(IndexerConstants.INDEXER_SPEED);
+  }
+  public Command IndexReverse() {
+    return runIndexer(-IndexerConstants.INDEXER_SPEED);
   }
 
   // public Command oscillateIndexer(

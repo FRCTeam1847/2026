@@ -13,17 +13,19 @@ import static edu.wpi.first.units.Units.Pounds;
 import static edu.wpi.first.units.Units.Radians;
 import static edu.wpi.first.units.Units.Seconds;
 import java.util.function.Supplier;
-
 import org.littletonrobotics.junction.Logger;
-
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants.TurretConstants;
 import yams.motorcontrollers.SmartMotorControllerConfig;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.Voltage;
+import edu.wpi.first.wpilibj.RobotState;
+import edu.wpi.first.wpilibj.sysid.SysIdRoutineLog;
 import yams.gearing.GearBox;
 import yams.gearing.MechanismGearing;
 import yams.mechanisms.config.PivotConfig;
@@ -41,10 +43,9 @@ public class TurretSubsystemV2 extends SubsystemBase {
                         .withClosedLoopController(4, 0, 0)
                         // .withTrapezoidalProfile(DegreesPerSecond.of(180),
                         // DegreesPerSecondPerSecond.of(90))
-                        .withTrapezoidalProfile(//This makes it faster. Above is the old slow one
+                        .withTrapezoidalProfile(// This makes it faster. Above is the old slow one
                                         DegreesPerSecond.of(720),
                                         DegreesPerSecondPerSecond.of(1440))
-                        // Configure Motor and Mechanism properties
                         .withGearing(new MechanismGearing(
                                         GearBox.fromReductionStages(TurretConstants.MOTOR_TO_TURRET_RATIO)))
                         .withIdleMode(MotorMode.BRAKE)
@@ -65,9 +66,6 @@ public class TurretSubsystemV2 extends SubsystemBase {
                         motorConfig);
 
         private final PivotConfig turretConfig = new PivotConfig()
-                        // .withHardLimits(Degrees.of(0), Degrees.of(360)) // Hard limit bc wiring
-                        // prevents infinite
-                        // // spinning
                         .withHardLimits(
                                         Degrees.of(TurretConstants.REVERSE_LIMIT),
                                         Degrees.of(TurretConstants.FORWARD_LIMIT))
@@ -75,31 +73,42 @@ public class TurretSubsystemV2 extends SubsystemBase {
 
         private final Pivot turret = new Pivot(turretConfig, turretSMC);
 
+        private void sysIdDrive(Voltage voltage) {
+                turretSMC.setVoltage(voltage);
+        }
+
+        public void sysIdLLog(SysIdRoutineLog log) {
+                log.motor("Turret")
+                                .voltage(turretMotor.getMotorVoltage().getValue())
+                                .angularPosition(turretSMC.getMechanismPosition())
+                                .angularVelocity(turretSMC.getMechanismVelocity());
+        }
+
+        private final SysIdRoutine sysIdRoutine = new SysIdRoutine(
+                        new SysIdRoutine.Config(),
+                        new SysIdRoutine.Mechanism(this::sysIdDrive, this::sysIdLLog, this, "Turret"));
+
+        public Command sysIdQuasistaticCommand(SysIdRoutine.Direction direction) {
+                return sysIdRoutine.quasistatic(direction).onlyWhile(RobotState::isTest);
+        }
+
+        public Command sysIdDynamicCommand(SysIdRoutine.Direction direction) {
+                return sysIdRoutine.dynamic(direction).onlyWhile(RobotState::isTest);
+        }
+
         public TurretSubsystemV2() {
         }
 
-        public Command setAngle(Angle angle) {
-                return turret.setAngle(angle);
-        }
-
-        public void setAngleDirect(Angle angle) {
-                turretSMC.setPosition(angle);
-        }
-
-        public Command setAngle(Supplier<Angle> angleSupplier) {
+        public Command setTurretAngleCommand(Supplier<Angle> angleSupplier) {
                 return turret.setAngle(angleSupplier);
         }
 
-        public Angle getAngle() {
+        public Command setTurrentAngleCommand(Angle angle) {
+                return turret.setAngle(angle).onlyWhile(RobotState::isTest);
+        }
+
+        public Angle getTurretAngle() {
                 return turret.getAngle();
-        }
-
-        public Command setDutyCycle(Supplier<Double> dutyCycleSupplier) {
-                return turret.set(dutyCycleSupplier);
-        }
-
-        public Command setDutyCycle(double dutyCycle) {
-                return turret.set(dutyCycle);
         }
 
         @Override
@@ -107,7 +116,7 @@ public class TurretSubsystemV2 extends SubsystemBase {
                 turret.updateTelemetry();
                 Pose3d turretPose = new Pose3d(
                                 TurretConstants.TURRET_OFFSET,
-                                new Rotation3d(0, 0, getAngle().in(Radians)));
+                                new Rotation3d(0, 0, getTurretAngle().in(Radians)));
 
                 Logger.recordOutput("Turret/Pose3d", turretPose);
         }

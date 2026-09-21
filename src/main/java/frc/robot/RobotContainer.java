@@ -6,7 +6,6 @@ package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -15,7 +14,9 @@ import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.ShootCommandV2;
@@ -25,8 +26,8 @@ import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.subsystems.V2.ShooterSubsystem;
+import static edu.wpi.first.units.Units.Degrees;
 import swervelib.SwerveInputStream;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
 import java.io.File;
 
 /**
@@ -45,7 +46,7 @@ public class RobotContainer {
     private final SwerveSubsystem drivebase = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
             "swerve"));
 
-    // private final TurretSubsystem turretSubsystem = new TurretSubsystem();
+    // private final TurretSubsystemV2 turretSubsystem = new TurretSubsystemV2();
     // private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(() ->
     // drivebase.getPose());
     private final ShooterSubsystem shooterSubsystem = new ShooterSubsystem(() -> drivebase.getPose());
@@ -98,26 +99,11 @@ public class RobotContainer {
 
         drivebase.setupPathPlanner();
         DriverStation.silenceJoystickConnectionWarning(true);
-
-        // Create the NamedCommands that will be used in PathPlanner
-        // NamedCommands.registerCommand("test", Commands.print("I EXIST"));
-
-        // NamedCommands.registerCommand(null, getAutonomousCommand());
-
-        // // Have the autoChooser pull in all PathPlanner autos as options
+        // Have the autoChooser pull in all PathPlanner autos as options
         autoChooser = AutoBuilder.buildAutoChooser();
         configureBindings();
-        // // // Set the default auto (do nothing)
-        // autoChooser.setDefaultOption("Do Nothing", Commands.none());
 
-        // // Add a simple auto option to have the robot drive forward for 1 second then
-        // // stop
-        // autoChooser.addOption("Drive Forward",
-        // drivebase.driveForward().withTimeout(1));
-        // autoChooser.addOption("Drive Forward",
-        // drivebase.driveForward().withTimeout(1));
-
-        // // Put the autoChooser on the SmartDashboard
+        // Put the autoChooser on the SmartDashboard
         SmartDashboard.putData("Auto Chooser", autoChooser);
 
         if (RobotBase.isSimulation()) {
@@ -129,24 +115,46 @@ public class RobotContainer {
     }
 
     private void registerNamedCommands() {
-        // NamedCommands.registerCommand("shoot",
-        // new ShootCommand(shooterSubsystem, indexerSubsystem)
-        // .alongWith(intakeSubsystem.oscillateRollersCommand(3, 0.15)));
+        // #region Shooter Commands
+        // Shooter part
+        // Run both shoot on the move and shoot command
+        NamedCommands.registerCommand("shootOnTheMove",
+                new ParallelCommandGroup(shootOnTheMoveCommand, shootCommand));
+        // NamedCommands.registerCommand("shootManual",
+        // new
+        // ParallelCommandGroup(shooterSubsystem.getFlywheel().setRPMCommand(RPM.of(1000)),
+        // shootCommand));
+        // Hood Part
+        NamedCommands.registerCommand("hoodUp", shooterSubsystem.getHood().setAngle(Degrees.of(25)));
+        NamedCommands.registerCommand("hoodDown", shooterSubsystem.getHood().setAngle(Degrees.of(56)));
+
+        // Turret Part
+        NamedCommands.registerCommand("Turret0", shooterSubsystem.getTurret().setTurrentAngleCommand(Degrees.of(0)));
+        NamedCommands.registerCommand("Turret90", shooterSubsystem.getTurret().setTurrentAngleCommand(Degrees.of(90)));
+        NamedCommands.registerCommand("TurretNeg90",
+                shooterSubsystem.getTurret().setTurrentAngleCommand(Degrees.of(-90)));
+        NamedCommands.registerCommand("TurretNeg180",
+                shooterSubsystem.getTurret().setTurrentAngleCommand(Degrees.of(-180)));
+
+        // #endregion
+
+        // #region Intake Named Commands
         NamedCommands.registerCommand("intakeUp",
                 intakeSubsystem.moveToAngleCommand(IntakeSubsystem.MIN_ANGLE + 5));
         NamedCommands.registerCommand("intakeDown",
                 intakeSubsystem.moveToAngleCommand(IntakeSubsystem.MAX_ANGLE - 5));
-        NamedCommands.registerCommand("intakeFuel", intakeSubsystem.intakeFuel());
-        NamedCommands.registerCommand("outputFuel", intakeSubsystem.throwFuel());
-        NamedCommands.registerCommand("intakeFuelStop", intakeSubsystem.stopIntakeCommand());
-        NamedCommands.registerCommand("indexerForward",
-                indexerSubsystem.runIndexer(Constants.IndexerConstants.INDEXER_SPEED));
-        NamedCommands.registerCommand("indexerBackward",
-                indexerSubsystem.runIndexer(-Constants.IndexerConstants.INDEXER_SPEED));
-        NamedCommands.registerCommand("indexerStop", indexerSubsystem.stop());
-        // NamedCommands.registerCommand("setManual", turretSubsystem.setManual());
-        // NamedCommands.registerCommand("setTracking", turretSubsystem.setTracking());
+        // #endregion
+        // #region Rollers Commands
+        NamedCommands.registerCommand("collectFuel", intakeSubsystem.collectFuel());
+        NamedCommands.registerCommand("outputFuel", intakeSubsystem.dropFuel());
+        // #endregion
 
+        // #region Indexer Commands
+        NamedCommands.registerCommand("indexForward", indexerSubsystem.IndexForward());
+        NamedCommands.registerCommand("indexReverse", indexerSubsystem.IndexReverse());
+        NamedCommands.registerCommand("indexManual", shootCommand);
+
+        // #endregion
     }
 
     /**
@@ -171,30 +179,30 @@ public class RobotContainer {
         } else {
             drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
         }
-
         // #endregion
 
-        driverController.a().whileTrue(
-                shootOnTheMoveCommand).onFalse(shooterSubsystem.stopShooter());
-        driverController.rightBumper().whileTrue(
-                shootCommand);
-        driverController.y().whileTrue(shooterSubsystem.runShooter(RotationsPerSecond.of(4)))
-                .whileFalse(shooterSubsystem.stopShooter());
+        // #region Shooter
+        // Should only use 1000 RPM if we are in test mode. If not use manual shoot
+        RobotModeTriggers.teleop().and(driverController.rightTrigger())
+                .whileTrue(NamedCommands.getCommand("shootOnTheMove"));
+        // RobotModeTriggers.test().and(driverController.rightTrigger())
+        //         .whileTrue(NamedCommands.getCommand("shootManual"));
 
-        // #region Intake Controls
-        // driverController.circle().onTrue(NamedCommands.getCommand("intakeUp"));
-        // driverController.cross().onTrue((NamedCommands.getCommand("intakeDown")));
-        // driverController.R1().whileTrue(NamedCommands.getCommand("intakeFuel"))
-        // .whileFalse(NamedCommands.getCommand("intakeFuelStop"));
-        // driverController.R2().whileTrue(NamedCommands.getCommand("outputFuel"))
-        // .whileFalse(NamedCommands.getCommand("intakeFuelStop"));
-        // // // #endregion
+        driverController.y().whileTrue(NamedCommands.getCommand("hoodUp"));
+        driverController.x().whileTrue(NamedCommands.getCommand("hoodDown"));
+        // #endregion
 
-        // // // #region Indexer Manual Controls
-        // driverController.povUp().whileTrue(NamedCommands.getCommand("indexerForward"))
-        // .whileFalse(NamedCommands.getCommand("indexerStop"));
-        // driverController.povDown().whileTrue(NamedCommands.getCommand("indexerBackward"))
-        // .whileFalse(NamedCommands.getCommand("indexerStop"));
+        // #region Intake
+        driverController.leftTrigger().whileTrue(NamedCommands.getCommand("collectFuel"));
+        driverController.a().whileTrue(NamedCommands.getCommand("intakeDown"));
+        driverController.b().whileTrue(NamedCommands.getCommand("intakeUp"));
+        // #endregion
+
+        // #region Turret
+        driverController.povUp().whileTrue(NamedCommands.getCommand("turret0"));
+        driverController.povDown().whileTrue(NamedCommands.getCommand("turretNeg180"));
+        driverController.povRight().whileTrue(NamedCommands.getCommand("turret90"));
+        driverController.povLeft().whileTrue(NamedCommands.getCommand("turretNeg90"));
         // #endregion
 
     }

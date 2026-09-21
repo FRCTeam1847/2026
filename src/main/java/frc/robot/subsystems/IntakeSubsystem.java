@@ -201,11 +201,11 @@ public class IntakeSubsystem extends SubsystemBase {
     return runOnce(() -> setTargetAngle(degrees));
   }
 
-  public Command intakeFuel() {
+  public Command collectFuel() {
     return run(() -> runRollers(-0.5));
   }
 
-  public Command throwFuel() {
+  public Command dropFuel() {
     return run(() -> runRollers(0.3));
   }
 
@@ -213,17 +213,17 @@ public class IntakeSubsystem extends SubsystemBase {
     return runOnce(this::stopRollers);
   }
 
-  public Command oscillateRollersCommand(
-      double forwardTime,
-      double reverseTime) {
-    return Commands.sequence(
-        intakeFuel().withTimeout(forwardTime),
-        runOnce(() -> stopRollers()).withTimeout(0.5),
-        throwFuel().withTimeout(reverseTime),
-        runOnce(() -> stopRollers()).withTimeout(0.5))
-        .repeatedly()
-        .finallyDo(interrupted -> stopRollers());
-  }
+  // public Command oscillateRollersCommand(
+  //     double forwardTime,
+  //     double reverseTime) {
+  //   return Commands.sequence(
+  //       collectFuel().withTimeout(forwardTime),
+  //       runOnce(() -> stopRollers()).withTimeout(0.5),
+  //       dropFuel().withTimeout(reverseTime),
+  //       runOnce(() -> stopRollers()).withTimeout(0.5))
+  //       .repeatedly()
+  //       .finallyDo(interrupted -> stopRollers());
+  // }
 
   // ========================
   // Periodic
