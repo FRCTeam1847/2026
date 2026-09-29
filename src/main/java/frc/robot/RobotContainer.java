@@ -21,7 +21,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.ShootCommandV2;
 import frc.robot.commands.ShootOnTheMoveCommand;
-import frc.robot.simulation.FieldSimulation;
+// import frc.robot.simulation.FieldSimulation;
 import frc.robot.subsystems.IndexerSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.SwerveSubsystem;
@@ -68,7 +68,7 @@ public class RobotContainer {
     // SmartDashboard, allowing selection of desired auto
     private final SendableChooser<Command> autoChooser;
 
-    private final FieldSimulation fieldSimulation;
+    //  private final FieldSimulation fieldSimulation;
 
     /**
      * Converts driver input into a field-relative ChassisSpeeds that is controlled
@@ -106,12 +106,11 @@ public class RobotContainer {
         // Put the autoChooser on the SmartDashboard
         SmartDashboard.putData("Auto Chooser", autoChooser);
 
-        if (RobotBase.isSimulation()) {
-            fieldSimulation = new FieldSimulation(drivebase.getSwerveDrive().getMapleSimDrive().get());
-        } else {
-            fieldSimulation = null;
-        }
-
+        // if (RobotBase.isSimulation()) {
+        //     fieldSimulation = new FieldSimulation(drivebase.getSwerveDrive().getMapleSimDrive().get());
+        // } else {
+        //     fieldSimulation = null;
+        // }
     }
 
     private void registerNamedCommands() {
@@ -223,8 +222,8 @@ public class RobotContainer {
     }
 
     public void simulationPeriodic() {
-        if (fieldSimulation != null) {
-            fieldSimulation.periodic();
-        }
+        // if (fieldSimulation != null) {
+        //     fieldSimulation.periodic();
+        // }
     }
 }
